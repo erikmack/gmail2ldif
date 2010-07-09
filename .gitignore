@@ -1,3 +1,15 @@
 gmail2ldif
 *.gdb
 build/*
+Session.vim
+autoscan-*.log
+Makefile.in
+src/Makefile.in
+configure
+COPYING
+INSTALL
+aclocal.m4
+depcomp
+install-sh
+missing
+autom4te.cache
