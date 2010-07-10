@@ -11,13 +11,8 @@
 #include "input.h"
 
 // Raw character data is read into a buffer.
-// A few bytes are reserved in front of the
-// buffer (the "prefix") for shifting multibyte
-// character fragments that were previously
-// truncated (at the buffer end).
-//#define RAW_PREFIX_SZ 8 // at least (longest_multibyte_sz)-1
 #define RAW_STDIN_SZ 16
-char raw[ /*RAW_PREFIX_SZ + */ RAW_STDIN_SZ ];
+char raw[ RAW_STDIN_SZ ];
 char * raw_convert_from;
 char * raw_read_to;
 
@@ -44,21 +39,16 @@ wchar_t * peek_wchar_ptr;
 
 static int has_more_wchars() {
 
-
-	
-
-
 	// Maybe invalid (start state) but will reset soon
 	current_wchar = *peek_wchar_ptr;
 	peek_wchar_ptr++;
+	can_peek = 0;
 
 	if( peek_wchar_ptr < converted_to_here ) {
 		can_peek = 1;	
 	// At end of converted characters, must convert some more
-	} if( peek_wchar_ptr == converted_to_here ) {
+	} else if( peek_wchar_ptr == converted_to_here ) {
 		
-		//TODO: Detect here whether to read more into raw
-
 		// raw_read_to at end of buffer, need to read again
 		if( raw_read_to == raw + RAW_STDIN_SZ ) {
 
@@ -104,12 +94,15 @@ static int has_more_wchars() {
 		} else {
 			//current_wchar = *wide;
 			converted_to_here = (wchar_t *)wide_target_char_ptr;
-			can_peek = converted_to_here > wide;
 		}
 		
 	}
+
+	can_peek = converted_to_here > wide;
+	// iconv will ignore EOF and fill with null chars, stop at null
+	can_peek = can_peek &&  *peek_wchar_ptr;
 	
-	return 1;
+	return can_peek;
 }
 
 static int initialize() {
@@ -181,7 +174,7 @@ struct token next_token() {
 		}
 	}
 
-	if(has_more_wchars()) fwprintf( stdout, L"current is %c, peek is %c\n", current_wchar, *peek_wchar_ptr );
+	while(has_more_wchars()) fwprintf( stdout, L"current is %c, peek is %c\n", current_wchar, *peek_wchar_ptr );
 
 	struct token tok;
 	memset( &tok, 0, sizeof tok );
