@@ -13,3 +13,5 @@ depcomp
 install-sh
 missing
 autom4te.cache
+*.swp
+src/*.swp
