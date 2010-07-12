@@ -110,6 +110,8 @@ int has_more_wchars() {
 }
 
 int input_initialize() {
+	if( is_lexer_initialized ) return 0;
+
 	// Change stream to wide-character
 	if( !fwide(stdout,0) ) {
 		if( fwide(stdout,1) <= 0 ) {
@@ -182,6 +184,7 @@ void input_destroy() {
 	if( status == -1 ) fwprintf( stderr, L"close: %s\n", strerror(errno) );
 
 	input_fd = 0;
+	is_lexer_initialized = 0;
 }
 
 void set_input( int fd ) {
@@ -209,21 +212,3 @@ wchar_t peek_next_char()
 
 
 
-struct token next_token() {
-
-	if( !is_lexer_initialized ) {
-		int status = input_initialize();
-		if(status == -1) {
-			fwprintf( stderr, L"initialize failed\n" );
-		}
-	}
-
-	//while(has_more_wchars()) fwprintf(stderr, L"Found char %c\n", get_current_char() );
-
-
-	input_destroy();
-
-	struct token tok;
-	memset( &tok, 0, sizeof tok );
-	return tok;
-}
