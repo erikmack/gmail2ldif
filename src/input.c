@@ -10,6 +10,12 @@
 
 #include "input.h"
 
+
+// Some required forward declarations
+int fwprintf( FILE * stream, const wchar_t * format, ...);
+int fwide( FILE * stream, int mode );
+
+
 // Raw character data is read into a buffer.
 #define RAW_STDIN_SZ 16
 char raw[ RAW_STDIN_SZ ];
@@ -23,29 +29,27 @@ wchar_t * converted_to_here = wide;
 
 
 
-// Some required forward declarations
-int fwprintf( FILE * stream, const wchar_t * format, ...);
-int fwide( FILE * stream, int mode );
-
 
 
 int is_lexer_initialized = 0;
 iconv_t cd = (iconv_t)-1;	// conversion descriptor for iconv
 
+int input_fd = 0;	// normally stdin, but unit tests will set it otherwise
+
 wchar_t current_wchar;
-int can_peek = 0;
+int can_peek_var = 0;
 
 wchar_t * peek_wchar_ptr;
 
-static int has_more_wchars() {
+int has_more_wchars() {
 
 	// Maybe invalid (start state) but will reset soon
 	current_wchar = *peek_wchar_ptr;
 	peek_wchar_ptr++;
-	can_peek = 0;
+	can_peek_var = 0;
 
 	if( peek_wchar_ptr < converted_to_here ) {
-		can_peek = 1;	
+		can_peek_var = 1;	
 	// At end of converted characters, must convert some more
 	} else if( peek_wchar_ptr == converted_to_here ) {
 		
@@ -62,7 +66,7 @@ static int has_more_wchars() {
 			}
 
 			raw_convert_from = raw;
-			int status = read( 0, raw_read_to, RAW_STDIN_SZ-(raw_read_to-raw));
+			int status = read( input_fd, raw_read_to, RAW_STDIN_SZ-(raw_read_to-raw));
 			if( status == -1 ) {
 				fwprintf( stderr, L"read: %s\n", strerror(errno) );
 				return 0;
@@ -98,14 +102,14 @@ static int has_more_wchars() {
 		
 	}
 
-	can_peek = converted_to_here > wide;
+	can_peek_var = converted_to_here > wide;
 	// iconv will ignore EOF and fill with null chars, stop at null
-	can_peek = can_peek &&  *peek_wchar_ptr;
+	can_peek_var = can_peek_var &&  *peek_wchar_ptr;
 	
-	return can_peek;
+	return can_peek_var;
 }
 
-static int initialize() {
+int input_initialize() {
 	// Change stream to wide-character
 	if( !fwide(stdout,0) ) {
 		if( fwide(stdout,1) <= 0 ) {
@@ -127,7 +131,7 @@ static int initialize() {
 	int status = 0;
 
 	// Input can be encoded as ASCII or UTF-16LE, discern
-	status = read(0, raw, 2);
+	status = read( input_fd, raw, 2);
 	if( status == -1 ) {
 		fwprintf( stderr, L"read: %s\n", strerror(errno) );
 	} else if (status < 2) {
@@ -135,12 +139,28 @@ static int initialize() {
 		return -1;
 	}
 
+	peek_wchar_ptr = wide + WCHAR_BUF_COUNT - 1;
+	
+	converted_to_here = wide + WCHAR_BUF_COUNT;
+
 	char * input_encoding = NULL;
 	if(raw[0]=='\377' && raw[1]=='\376') {
 		input_encoding = "UTF-16LE";
 	} else {
 		input_encoding = "ASCII";
-		rewind( stdin );
+
+		// We read two characters to sniff the encoding,
+		// but we'd still like to read them normally.
+		// rewind() and lseek() can rewind our files under
+		// normal conditions, but the unit tests use pipes
+		// which are unseekable.  Instead, let's just move
+		// the two characters where we'd like them so that
+		// reading can resume normally.
+		*(wide+WCHAR_BUF_COUNT-2) = btowc( *raw );
+		*(wide+WCHAR_BUF_COUNT-1) = btowc( *(raw+1) );
+		peek_wchar_ptr -= 1;
+		*(raw + RAW_STDIN_SZ - 2) = *raw;
+		*(raw + RAW_STDIN_SZ - 1) = *(raw+1);
 	}
 
 	cd = iconv_open( "WCHAR_T", input_encoding );
@@ -148,18 +168,43 @@ static int initialize() {
 
 	is_lexer_initialized = 1;
 
-	peek_wchar_ptr = wide + WCHAR_BUF_COUNT - 1;
-	
-	converted_to_here = wide + WCHAR_BUF_COUNT;
-
-	// Force initial read
-	has_more_wchars();
+	// Force initial read, unless ASCII
+	if( strcmp("ASCII",input_encoding) ) has_more_wchars();
 
 	return 0;
 }
 
+void input_destroy() {
+	int status = iconv_close( cd );
+	if( status == -1 ) fwprintf( stderr, L"iconv_close: %s\n", strerror(errno) );
 
+	status = close( input_fd );
+	if( status == -1 ) fwprintf( stderr, L"close: %s\n", strerror(errno) );
 
+	input_fd = 0;
+}
+
+void set_input( int fd ) {
+	input_fd = fd;
+}
+
+int can_peek()
+{
+	return can_peek_var;
+}
+
+wchar_t get_current_char()
+{
+	return current_wchar;
+}
+
+/*
+ * Result is undefined if !can_peek()
+ */
+wchar_t peek_next_char()
+{
+	return *peek_wchar_ptr;
+}
 
 
 
@@ -167,14 +212,16 @@ static int initialize() {
 struct token next_token() {
 
 	if( !is_lexer_initialized ) {
-		int status = initialize();
+		int status = input_initialize();
 		if(status == -1) {
 			fwprintf( stderr, L"initialize failed\n" );
-			exit(1);
 		}
 	}
 
-	while(has_more_wchars()) fwprintf( stdout, L"current is %c, peek is %c\n", current_wchar, *peek_wchar_ptr );
+	//while(has_more_wchars()) fwprintf(stderr, L"Found char %c\n", get_current_char() );
+
+
+	input_destroy();
 
 	struct token tok;
 	memset( &tok, 0, sizeof tok );
