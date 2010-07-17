@@ -8,6 +8,7 @@
 
 #include "test.h"
 #include "input.h"
+#include "parse.h"
 
 int fwprintf( FILE * stream, const wchar_t * format, ...);
 
@@ -51,6 +52,21 @@ char short_ascii[] = {
 
 char short_utf16le[] = {
 "\xff\xfe\x48\x00\x65\x00\x6c\x00\x6c\x00\x6f\x00\x0a\x00"         /* ..H.e.l.l.o...   */
+};
+
+
+/*
+One,"Two","Three ""tokens"""
+,,"Multiline
+token
+here"
+,,
+*/
+char short_ascii_csv[] = {
+"\x4f\x6e\x65\x2c\x22\x54\x77\x6f\x22\x2c\x22\x54\x68\x72\x65\x65" /* One,"Two","Three */
+"\x20\x22\x22\x74\x6f\x6b\x65\x6e\x73\x22\x22\x22\x0d\x0a\x2c\x2c" /*  ""tokens"""..,, */
+"\x22\x4d\x75\x6c\x74\x69\x6c\x69\x6e\x65\x0d\x0a\x74\x6f\x6b\x65" /* "Multiline..toke */
+"\x6e\x0d\x0a\x68\x65\x72\x65\x22\x0d\x0a\x2c\x2c\x0d\x0a"         /* n..here"..,,..   */
 };
 
 char header_ascii[] = {
@@ -915,6 +931,128 @@ static int test_utf16le_longer_char( const char ** testname ) {
 	return success;
 }
 
+static int test_short_lex( const char ** testname ) {
+
+	TEST_INIT
+
+	int success = 1;
+	struct token tok;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Hello" );
+
+	return success;
+}
+
+static int test_header_lex( const char ** testname ) {
+
+	TEST_INIT
+
+	int success = 1;
+	struct token tok;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Name" );
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Given Name" );
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Additional Name" );
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Family Name" );
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Yomi Name" );
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	return success;
+}
+
+/*
+One,"Two","Three ""tokens"""
+,,"Multiline
+token
+here"
+,,
+*/
+static int test_lex_short_csv( const char ** testname ) {
+
+	TEST_INIT
+
+	int success = 1;
+	struct token tok;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"One" );
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Two" );
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Three \\\"tokens\\\"" );
+
+	tok = next_token();
+	success = success && tok.type==NEWLINE;
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==STRING;
+	success = success && !wcscmp( tok.string_val , L"Multiline\\r\\ntoken\\r\\nhere");
+
+	tok = next_token();
+	success = success && tok.type==NEWLINE;
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==COMMA;
+
+	tok = next_token();
+	success = success && tok.type==NEWLINE;
+
+	tok = next_token();
+	success = success && tok.type==ENDOFFILE;
+
+	return success;
+}
+
 
 typedef void (*setup_func)( void * data, size_t data_sz );
 typedef int (*run_test_func)( const char ** testname );
@@ -928,11 +1066,17 @@ struct test {
 	tear_down_func tear_down;
 };
 
+#define TEST( buf, func ) { pipe_setup, buf, sizeof buf, func, pipe_teardown }
 static struct test tests[] = {
-	{ pipe_setup, short_ascii, sizeof short_ascii, test_short_ascii_char, pipe_teardown },
-	{ pipe_setup, short_utf16le, sizeof short_utf16le, test_short_utf16le_char, pipe_teardown },
-	{ pipe_setup, header_ascii, sizeof header_ascii, test_ascii_longer_char, pipe_teardown },
-	{ pipe_setup, header_utf16le, sizeof header_utf16le, test_utf16le_longer_char, pipe_teardown },
+	TEST( short_ascii, 		test_short_ascii_char ),
+	TEST( short_utf16le, 	test_short_utf16le_char ),
+	TEST( header_ascii, 	test_ascii_longer_char ),
+	TEST( header_utf16le, 	test_utf16le_longer_char ),
+	TEST( short_ascii, 		test_short_lex),
+	TEST( short_utf16le, 	test_short_lex),
+	TEST( header_ascii, 	test_header_lex),
+	TEST( header_utf16le, 	test_header_lex),
+	TEST( short_ascii_csv, 	test_lex_short_csv),
 	{ NULL }
 };
 
