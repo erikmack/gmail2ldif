@@ -15,8 +15,13 @@ int main() {
 
 	run_tests();
 	/*
+	int status = input_initialize();
+	if(status == -1) {
+		fwprintf( stderr, L"initialize failed\n" );
+	}
 	parse( &line_end_reached, &header_end_reached, 
 		&string_token_parsed );
+	input_destroy();
 	*/
 
 

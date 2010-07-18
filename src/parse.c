@@ -45,65 +45,69 @@ struct token next_token() {
 	
 	int in_quote = 0;
 	//int in_string = 0;
-	while(has_more_wchars()) {
+	while(1) {
+		if(has_more_wchars()) {
 
-		wchar_t c = get_current_char();
-		if(in_quote) {
-			if( c == L'"' ) {
-				// Handle escaped quote, convert "" to \"
-				if( peek_next_char() == L'"' ) {
+			wchar_t c = get_current_char();
+			if(in_quote) {
+				if( c == L'"' ) {
+					// Handle escaped quote, convert "" to \"
+					if( peek_next_char() == L'"' ) {
+						APPEND_CHAR( L'\\' )
+						APPEND_CHAR( L'"' )
+						has_more_wchars();
+					} else {
+						in_quote = 0;
+					}
+
+				// Escape new lines in quote for LDIF
+				} else if( c == L'\n' ) {
 					APPEND_CHAR( L'\\' )
-					APPEND_CHAR( L'"' )
-					has_more_wchars();
+					APPEND_CHAR( L'n' )
+				} else if( c == L'\r' ) {
+					APPEND_CHAR( L'\\' )
+					APPEND_CHAR( L'r' )
+
 				} else {
-					in_quote = 0;
+					APPEND_CHAR( c )
 				}
-
-			// Escape new lines in quote for LDIF
-			} else if( c == L'\n' ) {
-				APPEND_CHAR( L'\\' )
-				APPEND_CHAR( L'n' )
-			} else if( c == L'\r' ) {
-				APPEND_CHAR( L'\\' )
-				APPEND_CHAR( L'r' )
-
 			} else {
-				APPEND_CHAR( c )
+				if( c == L',' ) {
+					//field_index++;
+					tok.type = COMMA;
+					break;
+				} else if( c == L'\r' ) {
+					if( can_peek() && peek_next_char()==L'\n' ) {
+						line_index++;
+						has_more_wchars();
+						tok.type = NEWLINE;
+						break;
+					} else {
+						tok.type = ERROR;
+						tok.string_val = error_msg;
+						swprintf( error_msg, ERROR_LEN, L"Invalid line ending encountered, line %d\n", line_index );
+						break;
+					}
+				} else if( c == L'"' ) {
+					tok.type = STRING;
+					in_quote = 1;				
+				} else {
+					tok.type = STRING;
+					APPEND_CHAR( c )
+				}
+			}
+
+			// String is complete
+			if( !in_quote && can_peek() &&
+				( peek_next_char() == L','
+					|| peek_next_char() == L'\r'
+					|| peek_next_char() == L'\n' ) ) {
+				break;
 			}
 		} else {
-			if( c == L',' ) {
-				//field_index++;
-				tok.type = COMMA;
-				break;
-			} else if( c == L'\r' ) {
-				if( can_peek() && peek_next_char()==L'\n' ) {
-					line_index++;
-					has_more_wchars();
-					tok.type = NEWLINE;
-					break;
-				} else {
-					tok.type = ERROR;
-					tok.string_val = error_msg;
-					swprintf( error_msg, ERROR_LEN, L"Invalid line ending encountered, line %d\n", line_index );
-					break;
-				}
-			} else if( c == L'"' ) {
-				tok.type = STRING;
-				in_quote = 1;				
-			} else {
-				tok.type = STRING;
-				APPEND_CHAR( c )
-			}
-		}
-
-		// String is complete
-		if( !in_quote && can_peek() &&
-			( peek_next_char() == L','
-				|| peek_next_char() == L'\r'
-				|| peek_next_char() == L'\n' ) ) {
+			tok.type = ENDOFFILE;
 			break;
 		}
-
 	};
 
 	if( tok.type == UNKNOWN ) {
@@ -117,13 +121,26 @@ struct token next_token() {
 
 void parse( line_end_func line, header_end_func header, string_parsed_func string )
 {
-
-	int status = input_initialize();
-	if(status == -1) {
-		fwprintf( stderr, L"initialize failed\n" );
+	int header_complete = 0;
+	int field_index = 0;
+	struct token tok;
+	while( (tok=next_token()).type != ENDOFFILE ) {
+		if( tok.type == ERROR ) {
+			// TODO: handle
+		} else if( tok.type == STRING ) {
+			string( &(tok.string_val), field_index );
+		} else if( tok.type == COMMA ) {
+			field_index++;
+		} else if( tok.type == NEWLINE ) {
+			field_index = 0;
+			if( header_complete ) {
+				line();
+			} else {
+				header_complete = 1;
+				header();
+			}
+		}
 	}
-	struct token nt = next_token();
-	input_destroy();
 
 }
 

@@ -37,7 +37,6 @@ iconv_t cd = (iconv_t)-1;	// conversion descriptor for iconv
 int input_fd = 0;	// normally stdin, but unit tests will set it otherwise
 
 wchar_t current_wchar;
-int can_peek_var = 0;
 
 wchar_t * peek_wchar_ptr;
 
@@ -46,12 +45,9 @@ int has_more_wchars() {
 	// Maybe invalid (start state) but will reset soon
 	current_wchar = *peek_wchar_ptr;
 	peek_wchar_ptr++;
-	can_peek_var = 0;
 
-	if( peek_wchar_ptr < converted_to_here ) {
-		can_peek_var = 1;	
 	// At end of converted characters, must convert some more
-	} else if( peek_wchar_ptr == converted_to_here ) {
+	if( peek_wchar_ptr == converted_to_here ) {
 		
 		// raw_read_to at end of buffer, need to read again
 		if( raw_read_to == raw + RAW_STDIN_SZ ) {
@@ -96,17 +92,18 @@ int has_more_wchars() {
 				fwprintf( stderr, L"iconv: asked to convert too many characters, shouldn't occur, algorithm incorrect.\n" );
 			}
 		} else {
-			//current_wchar = *wide;
 			converted_to_here = (wchar_t *)wide_target_char_ptr;
 		}
 		
 	}
 
-	can_peek_var = converted_to_here > wide;
-	// iconv will ignore EOF and fill with null chars, stop at null
-	can_peek_var = can_peek_var &&  *peek_wchar_ptr;
-	
-	return can_peek_var;
+	return can_peek();
+}
+
+int can_peek()
+{
+	return ( converted_to_here > wide )
+		&& *peek_wchar_ptr;;
 }
 
 int input_initialize() {
@@ -189,11 +186,6 @@ void input_destroy() {
 
 void set_input( int fd ) {
 	input_fd = fd;
-}
-
-int can_peek()
-{
-	return can_peek_var;
 }
 
 wchar_t get_current_char()
