@@ -5,25 +5,32 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "test.h"
 #include "input.h"
 #include "parse.h"
+#include "output.h"
 
 int fwprintf( FILE * stream, const wchar_t * format, ...);
 
-int read_pipe_end;
-int write_pipe_end;
-
-static void pipe_setup( void * data, size_t data_sz ) {
+static void make_pipe( int * read, int * write ) {
 	int pipes[2];
 	int status = pipe( pipes );
-	read_pipe_end = pipes[0];
-	write_pipe_end = pipes[1];
+	*read = pipes[0];
+	*write = pipes[1];
 	if( status == -1 ) fwprintf(stderr, L"pipe: %s\n", strerror(errno) );
+}
+
+static int read_pipe_end, write_pipe_end;
+
+static void pipe_setup( void * data, size_t data_sz ) {
+
+	make_pipe( &read_pipe_end, &write_pipe_end );
 
 	set_input( read_pipe_end );
 	
+	int status;
 	if( !(status = fork()) ) {
 		status = close( read_pipe_end );
 		if( status == -1 ) fwprintf(stderr, L"pipe close read for test %s: %s\n", __func__, strerror(errno) );
@@ -1158,6 +1165,133 @@ static int test_parse_short_csv( const char ** testname ) {
 
 
 
+/* Begin output test infrastructure */
+
+static int output_read_pipe_end, output_write_pipe_end;
+static int result_read_pipe_end, result_write_pipe_end;
+
+static void output_setup( void * data, size_t data_sz ) {
+
+	pipe_setup( data, data_sz );
+
+	make_pipe( &output_read_pipe_end, &output_write_pipe_end );
+	make_pipe( &result_read_pipe_end, &result_write_pipe_end );
+	
+	int status;
+	if( !(status = fork()) ) {
+		status = close( output_write_pipe_end );
+		if( status == -1 ) fwprintf(stderr, L"pipe close read for test %s: %s\n", __func__, strerror(errno) );
+		status = close( result_read_pipe_end );
+		if( status == -1 ) fwprintf(stderr, L"pipe close read for test %s: %s\n", __func__, strerror(errno) );
+
+		
+
+
+		size_t expected_result_sz;
+		status = read( output_read_pipe_end, &expected_result_sz, sizeof expected_result_sz );
+		if( status == -1 ) fwprintf(stderr, L"error reading size for test %s: %s\n", __func__, strerror(errno) );
+
+		char expected_buf[ expected_result_sz + 1 ];
+		memset( expected_buf, 0, expected_result_sz + 1 );
+		status = read( output_read_pipe_end, expected_buf, expected_result_sz );
+		fwprintf(stderr, L"expected program output: %s\n", expected_buf );
+		if( status == -1 ) fwprintf(stderr, L"error reading expected program output: %s\n", strerror(errno) );
+
+
+
+		char output_buf[ expected_result_sz + 1 ];
+		memset( output_buf, 0, expected_result_sz + 1 );
+		status = read( output_read_pipe_end, output_buf, expected_result_sz );
+		if( status == -1 ) fwprintf(stderr, L"error reading program output: %s\n", strerror(errno) );
+
+
+		int i, success=1;
+		fwprintf(stderr, L"expected_result_sz: %d\n", expected_result_sz );
+		for( i=0; i<expected_result_sz; i++ ) {
+			fwprintf(stderr, L"comparing chars: %c %c\n", *(output_buf+i) , *(expected_buf+i) );
+			if( *(output_buf+i) != *(expected_buf+i)) {
+				success = 0;
+				break;
+			}
+		}
+
+		/*
+		 * TODO: Make this work
+		if( success ) {
+			status = fcntl( output_read_pipe_end, F_SETFL, O_NONBLOCK );
+			if( status == -1 ) fwprintf(stderr, L"error marking read pipe non-blocking: %s\n", strerror(errno) );
+			status = read( output_read_pipe_end, output_buf, 1 );
+			if( status == -1 ) fwprintf(stderr, L"unexpected read error: %s\n", strerror(errno) );
+			// expect no further output, so read should return 0
+			if( status != 0 ) success = 0;
+		}
+		*/
+
+		status = close( output_read_pipe_end );
+		if( status == -1 ) fwprintf(stderr, L"error closing output read pipe end: %s\n", strerror(errno) );
+		
+		fwprintf(stderr, L"wrote test result: %d\n", success );
+		status = write( result_write_pipe_end, &success, sizeof success );
+		if( status == -1 ) fwprintf(stderr, L"error writing test result: %s\n", strerror(errno) );
+
+		status = close( result_write_pipe_end );
+		if( status == -1 ) fwprintf(stderr, L"error closing result write pipe end: %s\n", strerror(errno) );
+
+		exit(0);
+	} 
+
+}
+
+static void output_teardown() {
+	int status;
+
+	status = close( output_write_pipe_end );
+	if( status == -1 ) fwprintf(stderr, L"error closing output write pipe end: %s\n", strerror(errno) );
+
+	status = close( result_read_pipe_end );
+	if( status == -1 ) fwprintf(stderr, L"error closing result read pipe end: %s\n", strerror(errno) );
+
+	pipe_teardown();
+}
+
+/* End output test infrastructure */
+
+
+/*
+ * Output tests work like this:
+ *  the setup function forked a process to compare actual output to expected
+ *  the test function must:
+ * 	   write expected output size
+ * 	   write expected output
+ * 	   pass output write pipe end to perform_conversion()
+ * 	   read result from result read pipe
+ */
+static int test_output_one( const char ** testname ) {
+	TEST_INIT
+
+	char * expected_result = "Hola";
+	size_t expected_result_sz = strlen( expected_result );
+
+	int status;
+	status = write( output_write_pipe_end, &expected_result_sz, sizeof expected_result_sz );
+	if( status == -1 ) fwprintf(stderr, L"error writing expected output size: %s\n", strerror(errno) );
+
+	status = write( output_write_pipe_end, expected_result, expected_result_sz );
+	if( status == -1 ) fwprintf(stderr, L"error writing expected output: %s\n", strerror(errno) );
+
+	struct output_config config;
+	config.out_fd = output_write_pipe_end;
+
+	perform_conversion( config );
+
+	int result;
+	status = read( result_read_pipe_end, &result, sizeof result );
+	if( status == -1 ) fwprintf(stderr, L"error reading test result: %s\n", strerror(errno) );
+
+	return result;
+}
+
+
 
 
 typedef void (*setup_func)( void * data, size_t data_sz );
@@ -1173,6 +1307,7 @@ struct test {
 };
 
 #define TEST( buf, func ) { pipe_setup, buf, sizeof buf, func, pipe_teardown }
+#define TEST_OUTPUT( buf, func ) { output_setup, buf, sizeof buf, func, output_teardown }
 static struct test tests[] = {
 	/* character input tests */
 	TEST( short_ascii, 		test_short_ascii_char ),
@@ -1189,6 +1324,9 @@ static struct test tests[] = {
 
 	/* parse tests */
 	TEST( short_ascii_csv, 	test_parse_short_csv),
+
+	/* output tests */
+	TEST_OUTPUT( complete_ascii,	test_output_one),
 
 	{ NULL }
 };

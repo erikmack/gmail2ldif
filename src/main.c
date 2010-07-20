@@ -1,19 +1,14 @@
 #include "test.h"
 #include "parse.h"
-
-static void line_end_reached() {
-}
-
-static void header_end_reached() {
-}
-
-static void string_token_parsed( wchar_t ** string, int field_index ) {
-}
+#include "output.h"
 
 int main() {
 	
 
 	run_tests();
+	struct output_config outconf;
+	outconf.out_fd = 1; //stdout
+	perform_conversion( outconf );
 	/*
 	int status = input_initialize();
 	if(status == -1) {
