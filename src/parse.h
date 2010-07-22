@@ -5,7 +5,7 @@
 
 typedef void (* line_end_func)();
 typedef void (* header_end_func)();
-typedef void (* string_parsed_func)( wchar_t ** string, int field_index );
+typedef void (* string_parsed_func)( wchar_t * string, int field_index );
 
 void parse( line_end_func line, header_end_func header, string_parsed_func string );
 

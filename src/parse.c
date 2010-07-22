@@ -128,7 +128,7 @@ void parse( line_end_func line, header_end_func header, string_parsed_func strin
 		if( tok.type == ERROR ) {
 			// TODO: handle
 		} else if( tok.type == STRING ) {
-			string( &(tok.string_val), field_index );
+			string( tok.string_val, field_index );
 		} else if( tok.type == COMMA ) {
 			field_index++;
 		} else if( tok.type == NEWLINE ) {

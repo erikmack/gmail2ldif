@@ -1095,11 +1095,11 @@ static void test_header_end_reached() {
 	g_list->index++;
 }
 
-static void test_string_token_parsed( wchar_t ** string, int field_index ) {
+static void test_string_token_parsed( wchar_t * string, int field_index ) {
 	int result;
 	struct parser_callback this = g_list->entries[ g_list->index ];
 	result = ( this.type == STRING_PARSED );
-	result = result && ( !wcscmp( this.string, *string ) );
+	result = result && ( !wcscmp( this.string, string ) );
 	result = result && ( this.field_index == field_index );
 	g_list->entries[ g_list->index ].result = result;
 	g_list->index++;
@@ -1164,6 +1164,47 @@ static int test_parse_short_csv( const char ** testname ) {
 }
 
 
+static int test_parse_header_one( const char ** testname ) {
+	TEST_INIT
+
+	wchar_t * header = L"Phone 2 - Type";
+	struct header_parse_result result = parse_header( header );
+
+	return 
+		result.is_global == 0
+		&& result.domain_name_len == 5
+		&& result.count_start == 6
+		&& result.count_len == 1
+		&& result.count_val == 2
+		&& result.field_start == 10
+		&& result.field_len == 4;
+}
+
+static int test_parse_header_two( const char ** testname ) {
+	TEST_INIT
+
+	wchar_t * header = L"Phone - Type";
+	struct header_parse_result result = parse_header( header );
+
+	return 
+		result.is_global == 1;
+}
+
+static int test_parse_header_three( const char ** testname ) {
+	TEST_INIT
+
+	wchar_t * header = L"Two Words 14 - Two More";
+	struct header_parse_result result = parse_header( header );
+
+	return 
+		result.is_global == 0
+		&& result.domain_name_len == 9
+		&& result.count_start == 10
+		&& result.count_len == 2
+		&& result.count_val == 14
+		&& result.field_start == 15
+		&& result.field_len == 8;
+}
 
 /* Begin output test infrastructure */
 
@@ -1194,7 +1235,7 @@ static void output_setup( void * data, size_t data_sz ) {
 		char expected_buf[ expected_result_sz + 1 ];
 		memset( expected_buf, 0, expected_result_sz + 1 );
 		status = read( output_read_pipe_end, expected_buf, expected_result_sz );
-		fwprintf(stderr, L"expected program output: %s\n", expected_buf );
+		//fwprintf(stderr, L"expected program output: %s\n", expected_buf );
 		if( status == -1 ) fwprintf(stderr, L"error reading expected program output: %s\n", strerror(errno) );
 
 
@@ -1206,9 +1247,9 @@ static void output_setup( void * data, size_t data_sz ) {
 
 
 		int i, success=1;
-		fwprintf(stderr, L"expected_result_sz: %d\n", expected_result_sz );
+		//fwprintf(stderr, L"expected_result_sz: %d\n", expected_result_sz );
 		for( i=0; i<expected_result_sz; i++ ) {
-			fwprintf(stderr, L"comparing chars: %c %c\n", *(output_buf+i) , *(expected_buf+i) );
+			//fwprintf(stderr, L"comparing chars: %c %c\n", *(output_buf+i) , *(expected_buf+i) );
 			if( *(output_buf+i) != *(expected_buf+i)) {
 				success = 0;
 				break;
@@ -1230,7 +1271,7 @@ static void output_setup( void * data, size_t data_sz ) {
 		status = close( output_read_pipe_end );
 		if( status == -1 ) fwprintf(stderr, L"error closing output read pipe end: %s\n", strerror(errno) );
 		
-		fwprintf(stderr, L"wrote test result: %d\n", success );
+		//fwprintf(stderr, L"wrote test result: %d\n", success );
 		status = write( result_write_pipe_end, &success, sizeof success );
 		if( status == -1 ) fwprintf(stderr, L"error writing test result: %s\n", strerror(errno) );
 
@@ -1292,6 +1333,7 @@ static int test_output_one( const char ** testname ) {
 }
 
 
+void null_setup_func( void * data, size_t data_sz ) { }
 
 
 typedef void (*setup_func)( void * data, size_t data_sz );
@@ -1325,8 +1367,13 @@ static struct test tests[] = {
 	/* parse tests */
 	TEST( short_ascii_csv, 	test_parse_short_csv),
 
+	/* parse header test */
+	{ null_setup_func, NULL, 0, test_parse_header_one, NULL },
+	{ null_setup_func, NULL, 0, test_parse_header_two, NULL },
+	{ null_setup_func, NULL, 0, test_parse_header_three, NULL },
+
 	/* output tests */
-	TEST_OUTPUT( complete_ascii,	test_output_one),
+	TEST_OUTPUT( complete_utf16le,	test_output_one),
 
 	{ NULL }
 };
