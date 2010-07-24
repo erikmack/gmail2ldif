@@ -1231,6 +1231,7 @@ static void output_setup( void * data, size_t data_sz ) {
 		size_t expected_result_sz;
 		status = read( output_read_pipe_end, &expected_result_sz, sizeof expected_result_sz );
 		if( status == -1 ) fwprintf(stderr, L"error reading size for test %s: %s\n", __func__, strerror(errno) );
+		//fwprintf(stderr, L"expected program output sz: %d\n", expected_result_sz );
 
 		char expected_buf[ expected_result_sz + 1 ];
 		memset( expected_buf, 0, expected_result_sz + 1 );
@@ -1242,14 +1243,17 @@ static void output_setup( void * data, size_t data_sz ) {
 
 		char output_buf[ expected_result_sz + 1 ];
 		memset( output_buf, 0, expected_result_sz + 1 );
+		char * read_to_here = output_buf;
+		size_t chars_remaining_to_read = expected_result_sz;
 
-
-		while( expected_result_sz ) {
-			status = read( output_read_pipe_end, output_buf, expected_result_sz );
+		while( chars_remaining_to_read ) {
+			//fwprintf(stderr, L"read\n" );
+			status = read( output_read_pipe_end, read_to_here, chars_remaining_to_read );
 			if( status == -1 ) {
 				fwprintf(stderr, L"error reading program output: %s\n", strerror(errno) );
 			} else {
-				expected_result_sz -= status;
+				chars_remaining_to_read -= status;
+				read_to_here += status;
 			}
 		}
 
@@ -1303,9 +1307,6 @@ static void output_teardown() {
 	pipe_teardown();
 }
 
-/* End output test infrastructure */
-
-
 /*
  * Output tests work like this:
  *  the setup function forked a process to compare actual output to expected
@@ -1315,12 +1316,7 @@ static void output_teardown() {
  * 	   pass output write pipe end to perform_conversion()
  * 	   read result from result read pipe
  */
-static int test_output_one( const char ** testname ) {
-	TEST_INIT
-
-	char * expected_result = 
-		"cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" 
-		"cn=Antonin Dvorak,ou=Contacts,dn=example,dn=org\r\n";
+static int output_test_common( const char * expected_result ) {
 	size_t expected_result_sz = strlen( expected_result );
 
 	int status;
@@ -1339,8 +1335,31 @@ static int test_output_one( const char ** testname ) {
 	int result;
 	status = read( result_read_pipe_end, &result, sizeof result );
 	if( status == -1 ) fwprintf(stderr, L"error reading test result: %s\n", strerror(errno) );
-
 	return result;
+
+}
+
+/* End output test infrastructure */
+
+
+static int test_output_ascii( const char ** testname ) {
+	TEST_INIT
+
+	char * expected_result = 
+		"cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" 
+		"cn=Antonin Dvorak,ou=Contacts,dn=example,dn=org\r\n";
+
+	return output_test_common( expected_result );
+}
+
+static int test_output_utf16( const char ** testname ) {
+	TEST_INIT
+
+	char * expected_result = 
+		"cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" 
+		"cn=Anton\xc3\xadn Dvo\xc5\x99\xc3\xa1k,ou=Contacts,dn=example,dn=org\r\n";
+
+	return output_test_common( expected_result );
 }
 
 void null_setup_func( void * data, size_t data_sz ) { }
@@ -1383,7 +1402,8 @@ static struct test tests[] = {
 	{ null_setup_func, NULL, 0, test_parse_header_three, NULL },
 
 	/* output tests */
-	TEST_OUTPUT( complete_utf16le,	test_output_one),
+	TEST_OUTPUT( complete_utf16le,	test_output_utf16),
+	TEST_OUTPUT( complete_ascii,	test_output_ascii),
 
 	{ NULL }
 };
@@ -1409,7 +1429,7 @@ void run_tests() {
 		if(one_test->run_test( &testname )) {
 			passing_test_count++;
 		} else {
-			fwprintf( stderr, L"Test failed: %s\n", testname );
+			fwprintf( stderr, L"Test failed: %s (index %d)\n", testname, one_test-tests );
 		}
 
 		if(one_test->tear_down) one_test->tear_down();
