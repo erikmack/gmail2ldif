@@ -17,7 +17,7 @@ int swprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
 
 wchar_t ** strings;
 size_t strings_count;
-int output_fd;
+struct output_config * config;
 
 iconv_t output_iconv_cd;
 
@@ -123,13 +123,22 @@ static int out_printf( const wchar_t * format, ...) {
 
 
 	free( wbuf );
-	int status = write( output_fd, mbbuf, outbuf-mbbuf );
+	int status = write( config->out_fd, mbbuf, outbuf-mbbuf );
 	if( status == -1 ) fwprintf( stderr, L"output_fd write: %s\n", strerror(errno) );
 
 	return status; 
 }
 
 static void line_end_reached() {
+	
+	// domains are sorted, global is first
+	struct domain * global = domains;
+
+	// TODO: Escape commas in cd for dn
+	out_printf( L"cn=%ls,%s\r\n", 
+		strings[ global->notable_field_map[ NAME ] ],
+		config->dn_suffix );
+
 }
 
 /*
@@ -267,6 +276,27 @@ static struct domain * get_domain_for_header(wchar_t * header_value,
 	return ret;
 }
 
+/*
+ * A comparator for sorting domains
+ */
+static int domain_cmp( const void * a, const void * b ) {
+	struct domain * da = (struct domain *)a;
+	struct domain * db = (struct domain *)b;
+
+	if( da->is_global && !db->is_global ) return -1;
+	if( !da->is_global && db->is_global ) return 1;
+
+	int name_cmp = wcscmp( da->type, db->type );
+	if( name_cmp ) return name_cmp;
+
+	if( da->index_of_type < db->index_of_type ) return -1;
+	if( da->index_of_type > db->index_of_type ) return 1;
+
+	fwprintf( stderr, L"Error, two sortably-identical names encountered: %ls & %ls\n",
+		da->type, db->type );
+	return 0;
+}
+
 static void header_end_reached() {
 
 	int i;
@@ -340,6 +370,9 @@ static void header_end_reached() {
 		}
 	}
 
+	// Sort domains for convenience, can assume domains[0] is global
+	qsort( domains, domain_count, sizeof(struct domain), domain_cmp );
+
 }
 
 static void string_token_parsed( wchar_t * string, int field_index ) {
@@ -368,7 +401,7 @@ void perform_conversion( struct output_config outconf ) {
 
 	strings = NULL;
 	strings_count = 0;
-	output_fd = outconf.out_fd;
+	config = &outconf;
 
 
 	output_iconv_cd = iconv_open( "UTF-8", "WCHAR_T" );
@@ -378,12 +411,6 @@ void perform_conversion( struct output_config outconf ) {
 		&string_token_parsed );
 
 	int status;
-	wchar_t * out = L"Hola";
-	status = out_printf( L"%ls", out );
-	if( status == -1 ) fwprintf( stderr, L"out_printf: %s\n", strerror(errno) );
-
-
-
 	status = iconv_close( output_iconv_cd );
 	if( status == -1 ) fwprintf( stderr, L"iconv_close: %s\n", strerror(errno) );
 

@@ -1242,8 +1242,16 @@ static void output_setup( void * data, size_t data_sz ) {
 
 		char output_buf[ expected_result_sz + 1 ];
 		memset( output_buf, 0, expected_result_sz + 1 );
-		status = read( output_read_pipe_end, output_buf, expected_result_sz );
-		if( status == -1 ) fwprintf(stderr, L"error reading program output: %s\n", strerror(errno) );
+
+
+		while( expected_result_sz ) {
+			status = read( output_read_pipe_end, output_buf, expected_result_sz );
+			if( status == -1 ) {
+				fwprintf(stderr, L"error reading program output: %s\n", strerror(errno) );
+			} else {
+				expected_result_sz -= status;
+			}
+		}
 
 
 		int i, success=1;
@@ -1310,7 +1318,9 @@ static void output_teardown() {
 static int test_output_one( const char ** testname ) {
 	TEST_INIT
 
-	char * expected_result = "Hola";
+	char * expected_result = 
+		"cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" 
+		"cn=Antonin Dvorak,ou=Contacts,dn=example,dn=org\r\n";
 	size_t expected_result_sz = strlen( expected_result );
 
 	int status;
@@ -1322,6 +1332,7 @@ static int test_output_one( const char ** testname ) {
 
 	struct output_config config;
 	config.out_fd = output_write_pipe_end;
+	config.dn_suffix = "ou=Contacts,dn=example,dn=org";
 
 	perform_conversion( config );
 
@@ -1331,7 +1342,6 @@ static int test_output_one( const char ** testname ) {
 
 	return result;
 }
-
 
 void null_setup_func( void * data, size_t data_sz ) { }
 
