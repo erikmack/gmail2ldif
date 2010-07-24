@@ -2,18 +2,24 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <wctype.h>
+#include <iconv.h>
+#include <errno.h>
 
 #include "output.h"
 #include "parse.h"
 
 int fwprintf( FILE * stream, const wchar_t * format, ...);
+int vswprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
+int swprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
 
 wchar_t ** strings;
 size_t strings_count;
 int output_fd;
 
+iconv_t output_iconv_cd;
 
 
 
@@ -64,6 +70,64 @@ size_t domain_count = 0;
 
 
 
+
+
+static int out_printf( const wchar_t * format, ...) {
+
+	/* Begin create single wide buffer */
+	va_list argp;
+	va_start(argp, format);
+
+	size_t maxlen = 16;
+	size_t buf_sz;
+	wchar_t * wbuf; 
+	int wbuf_chars_written;
+	while(1) {
+
+		buf_sz = maxlen * sizeof(wchar_t);
+		wbuf = malloc( buf_sz );
+		memset( wbuf, 0, buf_sz );
+		
+		wbuf_chars_written = 
+			vswprintf( wbuf, maxlen, format, argp );
+
+		int need_more = 
+			wbuf_chars_written == maxlen
+			|| (wbuf_chars_written == -1 && errno==ESPIPE );
+
+		if( need_more ) {
+			// Didn't have enough room, try again
+			free( wbuf );
+			maxlen *= 2;
+		} else if( wbuf_chars_written == -1 ) {
+			fwprintf( stderr, L"vswprintf: %d\n", errno );
+		} else break;
+	}
+	va_end(argp);
+	/* End create single wide buffer */
+
+
+	// Output write buffer ... unlikely to be larger than
+	// wbuf (wchar_t -> utf-8), so make it that big
+	char mbbuf[ buf_sz ];
+	memset( mbbuf, 0, buf_sz );
+
+
+	char * inbuf;
+	char * outbuf;
+	inbuf = (char *)wbuf;
+	outbuf = (char *)mbbuf;
+	size_t inbytesleft = wbuf_chars_written * sizeof(wchar_t);
+	size_t outbytesleft = buf_sz;
+	iconv( output_iconv_cd, &inbuf, &inbytesleft, &outbuf, &outbytesleft );
+
+
+	free( wbuf );
+	int status = write( output_fd, mbbuf, outbuf-mbbuf );
+	if( status == -1 ) fwprintf( stderr, L"output_fd write: %s\n", strerror(errno) );
+
+	return status; 
+}
 
 static void line_end_reached() {
 }
@@ -137,7 +201,6 @@ struct header_parse_result parse_header( wchar_t * header ) {
 
 	return result;
 }
-
 
 static struct domain * get_domain_for_header(wchar_t * header_value, 
 	struct header_parse_result parse ) {
@@ -302,25 +365,26 @@ static void string_token_parsed( wchar_t * string, int field_index ) {
 }
 
 void perform_conversion( struct output_config outconf ) {
-	int status;
 
 	strings = NULL;
 	strings_count = 0;
 	output_fd = outconf.out_fd;
 
-	/*
-	int i;
-	for(i=0; i<NOTABLE_FIELD_COUNT; i++) {
-		notable_field_map[ i ] = -1;
-	}
-	*/
+
+	output_iconv_cd = iconv_open( "UTF-8", "WCHAR_T" );
+	if( output_iconv_cd == (iconv_t)-1 ) fwprintf( stderr, L"iconv_open: %s\n", strerror(errno) );
 
 	parse( &line_end_reached, &header_end_reached, 
 		&string_token_parsed );
 
+	int status;
+	wchar_t * out = L"Hola";
+	status = out_printf( L"%ls", out );
+	if( status == -1 ) fwprintf( stderr, L"out_printf: %s\n", strerror(errno) );
 
 
-	char * out = "Hola";
-	status = write( outconf.out_fd, out, strlen(out) );
+
+	status = iconv_close( output_iconv_cd );
+	if( status == -1 ) fwprintf( stderr, L"iconv_close: %s\n", strerror(errno) );
 
 }

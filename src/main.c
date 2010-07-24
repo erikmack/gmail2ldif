@@ -6,10 +6,13 @@ int main() {
 	
 
 	run_tests();
+
+	/*
 	struct output_config outconf;
 	outconf.out_fd = 1; //stdout
 	perform_conversion( outconf );
-	/*
+
+
 	int status = input_initialize();
 	if(status == -1) {
 		fwprintf( stderr, L"initialize failed\n" );
@@ -18,12 +21,6 @@ int main() {
 		&string_token_parsed );
 	input_destroy();
 	*/
-
-
-
-	
-	
-
 	
 	return 0;
 }
