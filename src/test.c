@@ -479,6 +479,7 @@ char complete_ascii[] = {
 "\x70\x2c\x66\x74\x70\x3a\x2f\x2f\x66\x69\x6c\x65\x73\x2e\x66\x61" /* p,ftp://files.fa */
 "\x6b\x65\x2e\x63\x6f\x6d\x2c\x41\x6e\x6e\x69\x76\x65\x72\x73\x61" /* ke.com,Anniversa */
 "\x72\x79\x2c\x32\x30\x30\x39\x2d\x30\x37\x2d\x31\x31\x0d\x0a\x41" /* ry,2009-07-11..A */
+
 "\x6e\x74\x6f\x6e\x69\x6e\x20\x44\x76\x6f\x72\x61\x6b\x2c\x41\x6e" /* ntonin Dvorak,An */
 "\x74\x6f\x6e\x69\x6e\x2c\x2c\x44\x76\x6f\x72\x61\x6b\x2c\x2c\x2c" /* tonin,,Dvorak,,, */
 "\x2c\x2c\x2c\x2c\x2c\x2c\x2c\x2c\x31\x39\x34\x31\x2d\x30\x39\x2d" /* ,,,,,,,,1941-09- */
@@ -1261,7 +1262,7 @@ static void output_setup( void * data, size_t data_sz ) {
 		int i, success=1;
 		//fwprintf(stderr, L"expected_result_sz: %d\n", expected_result_sz );
 		for( i=0; i<expected_result_sz; i++ ) {
-			//fwprintf(stderr, L"comparing chars: %c %c\n", *(output_buf+i) , *(expected_buf+i) );
+			fwprintf(stderr, L"comparing chars: %c %c\n", *(output_buf+i) , *(expected_buf+i) );
 			if( *(output_buf+i) != *(expected_buf+i)) {
 				success = 0;
 				break;
@@ -1342,12 +1343,38 @@ static int output_test_common( const char * expected_result ) {
 /* End output test infrastructure */
 
 
+
+#define COMMON_1 "dn: cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" \
+		"changeType: add\r\n" \
+		"objectClass: inetOrgPerson\r\n" \
+		"cn: Abbie Normal\r\n" \
+		"gn: Abbie\r\n" \
+		"sn: Normal\r\n" \
+		"mail: ab.normal@home.org ::: ab.normal@other.net\r\n" \
+		"mail: ab.normal@work.com\r\n" \
+		/* "P.O. Box 1\r\nVacant Town, IA\r\n50801\r\n" */ \
+		/* "6 Industry Way\r\nFramingham, PA\r\n54321\r\n" */ \
+		"\r\n"
+
+#define COMMON_2 "changeType: add\r\n" \
+		"objectClass: inetOrgPerson\r\n" 
+
+#define COMMON_3  \
+		"mail: clever@mail.org\r\n" \
+		"\r\n" 
+
 static int test_output_ascii( const char ** testname ) {
 	TEST_INIT
 
 	char * expected_result = 
-		"cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" 
-		"cn=Antonin Dvorak,ou=Contacts,dn=example,dn=org\r\n";
+		COMMON_1
+		"dn: cn=Antonin Dvorak,ou=Contacts,dn=example,dn=org\r\n"
+		COMMON_2
+		"cn: Antonin Dvorak\r\n" 
+		"gn: Antonin\r\n" 
+		"sn: Dvorak\r\n"
+		COMMON_3
+		;
 
 	return output_test_common( expected_result );
 }
@@ -1356,11 +1383,19 @@ static int test_output_utf16( const char ** testname ) {
 	TEST_INIT
 
 	char * expected_result = 
-		"cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" 
-		"cn=Anton\xc3\xadn Dvo\xc5\x99\xc3\xa1k,ou=Contacts,dn=example,dn=org\r\n";
+		COMMON_1
+		"dn: cn=Anton\xc3\xadn Dvo\xc5\x99\xc3\xa1k,ou=Contacts,dn=example,dn=org\r\n"
+		COMMON_2
+		"cn: Anton\xc3\xadn Dvo\xc5\x99\xc3\xa1k\r\n" 
+		"gn: Anton\xc3\xadn\r\n" 
+		"sn: Dvo\xc5\x99\xc3\xa1k\r\n"
+		COMMON_3
+		;
 
 	return output_test_common( expected_result );
 }
+
+
 
 void null_setup_func( void * data, size_t data_sz ) { }
 

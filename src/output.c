@@ -43,7 +43,7 @@ enum notable_source_fields {
 	VALUE,
 
 	// address domain
-	FORMATTED,
+	ADDRESS_FORMATTED,
 
 	// organization domain
 	
@@ -129,16 +129,56 @@ static int out_printf( const wchar_t * format, ...) {
 	return status; 
 }
 
+static void clear_strings() {
+
+	wchar_t ** one_string = strings;
+	for(; one_string<strings+strings_count; one_string++ ) {
+		if( *one_string ) free( *one_string );
+		*one_string = NULL;
+	}
+}
+
 static void line_end_reached() {
-	
+
 	// domains are sorted, global is first
-	struct domain * global = domains;
-
+	struct domain * one_domain = domains;
+#define EXISTS( key ) (one_domain->notable_field_map[ key ] !=-1 && strings[ one_domain->notable_field_map[ key ] ] )
+#define GET( key ) ( strings[ one_domain->notable_field_map[ key ] ])
 	// TODO: Escape commas in cd for dn
-	out_printf( L"cn=%ls,%s\r\n", 
-		strings[ global->notable_field_map[ NAME ] ],
-		config->dn_suffix );
+	out_printf( L"dn: cn=%ls,%s\r\n", GET( NAME ), config->dn_suffix );
+	out_printf( L"changeType: add\r\n" );
 
+	out_printf( L"objectClass: inetOrgPerson\r\n" );
+
+	// TODO: for blank cn, discern a substitute
+	// TODO: optionally add/delete/both
+	out_printf( L"cn: %ls\r\n", GET( NAME ) );
+	if( EXISTS( GIVEN_NAME ) ) out_printf( L"gn: %ls\r\n", GET( GIVEN_NAME ) );
+	if( EXISTS( FAMILY_NAME ) ) out_printf( L"sn: %ls\r\n", GET( FAMILY_NAME ) );
+	if( EXISTS( NAME_PREFIX ) ) out_printf( L"personalTitle: %ls\r\n", GET( NAME_PREFIX ) );
+	if( EXISTS( NAME_SUFFIX ) ) out_printf( L"generationQualifier: %ls\r\n", GET( NAME_SUFFIX ) );
+	if( EXISTS( INITIALS ) ) out_printf( L"initials: %ls\r\n", GET( INITIALS ) );
+	if( EXISTS( OCCUPATION ) ) out_printf( L"title: %ls\r\n", GET( OCCUPATION ) );
+
+
+#define ITERATE( domain_type, map_value, fmt ) \
+	for(one_domain=domains; one_domain<domains+domain_count; one_domain++ ) { \
+		if( !one_domain->is_global && !wcscmp( domain_type, one_domain->type ) ) { \
+			if( EXISTS( map_value ) ) out_printf( fmt, GET( map_value ) ); \
+		} \
+	}
+
+	// TODO: handle ::: separator in e-mails
+	ITERATE( L"E-mail", VALUE, L"mail: %ls\r\n" )
+	ITERATE( L"Address", ADDRESS_FORMATTED, L"streetAddress: %ls\r\n" )
+
+
+	out_printf( L"\r\n" );
+	
+#undef EXISTS
+#undef GET
+
+	clear_strings();
 }
 
 /*
@@ -331,6 +371,8 @@ static void header_end_reached() {
 					|| !wcscmp( L"Phone", domain->type ) 
 					|| !wcscmp( L"Website", domain->type ) 
 					|| !wcscmp( L"Event", domain->type ) ) {
+			MAP( L"Type", TYPE )
+			else MAP( L"Value", VALUE )
 		}
 
 		if( !is_notable ) {
@@ -373,6 +415,7 @@ static void header_end_reached() {
 	// Sort domains for convenience, can assume domains[0] is global
 	qsort( domains, domain_count, sizeof(struct domain), domain_cmp );
 
+	clear_strings();
 }
 
 static void string_token_parsed( wchar_t * string, int field_index ) {
