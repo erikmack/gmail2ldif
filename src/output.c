@@ -15,8 +15,13 @@ int fwprintf( FILE * stream, const wchar_t * format, ...);
 int vswprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
 int swprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
 
-wchar_t ** strings;
-size_t strings_count;
+struct strings_slot {
+	wchar_t ** strings;
+	size_t count;
+};
+//wchar_t ** strings;
+struct strings_slot * slots;
+size_t slots_count;
 struct output_config * config;
 
 iconv_t output_iconv_cd;
@@ -131,10 +136,19 @@ static int out_printf( const wchar_t * format, ...) {
 
 static void clear_strings() {
 
-	wchar_t ** one_string = strings;
-	for(; one_string<strings+strings_count; one_string++ ) {
-		if( *one_string ) free( *one_string );
-		*one_string = NULL;
+	struct strings_slot * one_slot = slots;
+	for(; one_slot<slots+slots_count; one_slot++ ) {
+		if( one_slot ) {
+			wchar_t ** one_string;
+			for(one_string = one_slot->strings; 
+				one_string < one_slot->strings + one_slot->count;
+				one_string++ ) {
+				
+				free( *one_string );
+				*one_string = NULL;
+			}
+			one_slot->count = 0;
+		}
 	}
 }
 
@@ -142,8 +156,8 @@ static void line_end_reached() {
 
 	// domains are sorted, global is first
 	struct domain * one_domain = domains;
-#define EXISTS( key ) (one_domain->notable_field_map[ key ] !=-1 && strings[ one_domain->notable_field_map[ key ] ] )
-#define GET( key ) ( strings[ one_domain->notable_field_map[ key ] ])
+#define EXISTS( key ) (one_domain->notable_field_map[ key ] !=-1 && slots[ one_domain->notable_field_map[ key ] ].strings[0] )
+#define GET( key ) ( slots[ one_domain->notable_field_map[ key ] ].strings[0] )
 	// TODO: Escape commas in cd for dn
 	out_printf( L"dn: cn=%ls,%s\r\n", GET( NAME ), config->dn_suffix );
 	out_printf( L"changeType: add\r\n" );
@@ -160,17 +174,22 @@ static void line_end_reached() {
 	if( EXISTS( INITIALS ) ) out_printf( L"initials: %ls\r\n", GET( INITIALS ) );
 	if( EXISTS( OCCUPATION ) ) out_printf( L"title: %ls\r\n", GET( OCCUPATION ) );
 
-
+	//TODO: make a function
 #define ITERATE( domain_type, map_value, fmt ) \
 	for(one_domain=domains; one_domain<domains+domain_count; one_domain++ ) { \
 		if( !one_domain->is_global && !wcscmp( domain_type, one_domain->type ) ) { \
-			if( EXISTS( map_value ) ) out_printf( fmt, GET( map_value ) ); \
+			if( EXISTS( map_value ) ) { \
+				int i=0; \
+				struct strings_slot slot = slots[ one_domain->notable_field_map[ map_value ] ]; \
+				for(; i<slot.count; i++) { \
+					out_printf( fmt, slot.strings[i] ); \
+				} \
+			} \
 		} \
 	}
 
-	// TODO: handle ::: separator in e-mails
 	ITERATE( L"E-mail", VALUE, L"mail: %ls\r\n" )
-	ITERATE( L"Address", ADDRESS_FORMATTED, L"streetAddress: %ls\r\n" )
+	//ITERATE( L"Address", ADDRESS_FORMATTED, L"streetAddress: %ls\r\n" )
 
 
 	out_printf( L"\r\n" );
@@ -340,8 +359,10 @@ static int domain_cmp( const void * a, const void * b ) {
 static void header_end_reached() {
 
 	int i;
-	wchar_t ** one_string = strings;
-	for( i=0; i<strings_count; i++, one_string++ ) {
+	struct strings_slot * one_slot = slots;
+	for( i=0; i<slots_count; i++, one_slot++ ) {
+		wchar_t ** one_string = one_slot->strings;
+
 		
 
 		struct header_parse_result result = parse_header( *one_string );
@@ -418,32 +439,34 @@ static void header_end_reached() {
 	clear_strings();
 }
 
-static void string_token_parsed( wchar_t * string, int field_index ) {
-	if( field_index+1 > strings_count ) {
-		if( strings_count ) {
-			strings = realloc( strings, (field_index+1) * sizeof( wchar_t * ) );
+static void string_token_parsed( wchar_t ** strings, size_t strings_count, int field_index ) {
+	if( field_index+1 > slots_count ) {
+		if( slots_count ) {
+			slots = realloc( slots, (field_index+1) * sizeof( struct strings_slot ) );
 		} else {
-			strings = malloc( sizeof( wchar_t * ) );
+			slots = malloc( sizeof( struct strings_slot ) );
 		}
 		
 		// Fill in any gaps if necessary with NULL
 		int i;
-		for( i=strings_count; i<field_index; i++ ) {
-			strings[i] = NULL;
+		for( i=slots_count; i<field_index; i++ ) {
+			slots[i].strings = NULL;
+			slots[i].count = 0;
 		}
 
-		strings_count = field_index + 1;
+		slots_count = field_index + 1;
 	}
 
 	//fwprintf( stderr, L"Added at index %d, string %ls\n", field_index, string );
 
-	strings[ field_index ] = string;
+	slots[ field_index ].strings = strings;
+	slots[ field_index ].count = strings_count;
 }
 
 void perform_conversion( struct output_config outconf ) {
 
-	strings = NULL;
-	strings_count = 0;
+	slots = NULL;
+	slots_count = 0;
 	config = &outconf;
 
 

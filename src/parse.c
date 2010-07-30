@@ -10,16 +10,22 @@ int fwprintf( FILE * stream, const wchar_t * format, ...);
 int swprintf( wchar_t * wcs, size_t maxlen, const wchar_t * format, ...);
 
 // TODO: handle OOM
-#define APPEND_CHAR( wc ) { \
-	size_t newlen = 2; \
-	if( tok.string_val ) { \
-		newlen = ( wcslen( tok.string_val ) + 2 ); \
-		tok.string_val = realloc( tok.string_val, newlen * sizeof(wchar_t) ); \
-	} else { \
-		tok.string_val = malloc( newlen * sizeof(wchar_t) ); \
-	} \
-	*(tok.string_val + newlen - 2) = wc ; \
-	*(tok.string_val + newlen - 1) = L'\0'; \
+void append_char( wchar_t wc, struct token * tok ) {
+	if( !tok->strings ) {
+		tok->strings = malloc(sizeof( wchar_t *));
+		*(tok->strings) = NULL;
+	}
+	wchar_t * append_to = tok->strings[ tok->strings_count-1 ];
+	if( !append_to ) {
+		tok->strings = realloc( tok->strings, tok->strings_count*sizeof(wchar_t *));
+		tok->strings[ tok->strings_count ] = NULL;
+		append_to = tok->strings[ tok->strings_count-1 ] = malloc( sizeof(wchar_t));
+		*append_to = L'\0';
+	}
+	size_t newlen = ( wcslen( append_to ) + 2 );
+	append_to = tok->strings[ tok->strings_count-1 ] = realloc( append_to , newlen * sizeof(wchar_t) );
+	*( append_to + newlen - 2) = wc ;
+	*( append_to + newlen - 1) = L'\0';
 }
 
 struct token next_token() {
@@ -30,6 +36,7 @@ struct token next_token() {
 	struct token tok;
 	memset( &tok, 0, sizeof tok );
 	tok.type = UNKNOWN;
+	tok.strings_count = 0;
 
 	if( !can_peek() ) {
 		tok.type = ENDOFFILE;
@@ -42,19 +49,31 @@ struct token next_token() {
 	#define ERROR_LEN 256
 	wchar_t error_msg[ ERROR_LEN+1 ];
 	memset( error_msg, 0, (ERROR_LEN+1)*sizeof(wchar_t) );
+
+	enum separator_state {
+		NOT_IN_SEPARATOR,
+		IN_SPACE_1,
+		IN_COLON_1,
+		IN_COLON_2,
+		IN_COLON_3,
+		IN_SPACE_2, //needed?
+	};
+		
+	enum separator_state sep_state = NOT_IN_SEPARATOR;
 	
 	int in_quote = 0;
 	//int in_string = 0;
 	while(1) {
 		if(has_more_wchars()) {
+			if( !tok.strings_count ) tok.strings_count++;
 
 			wchar_t c = get_current_char();
 			if(in_quote) {
 				if( c == L'"' ) {
 					// Handle escaped quote, convert "" to \"
 					if( peek_next_char() == L'"' ) {
-						APPEND_CHAR( L'\\' )
-						APPEND_CHAR( L'"' )
+						append_char( L'\\' , &tok );
+						append_char( L'"' , &tok );
 						has_more_wchars();
 					} else {
 						in_quote = 0;
@@ -62,38 +81,66 @@ struct token next_token() {
 
 				// Escape new lines in quote for LDIF
 				} else if( c == L'\n' ) {
-					APPEND_CHAR( L'\\' )
-					APPEND_CHAR( L'n' )
+					append_char( L'\\' , &tok );
+					append_char( L'n' , &tok );
 				} else if( c == L'\r' ) {
-					APPEND_CHAR( L'\\' )
-					APPEND_CHAR( L'r' )
+					append_char( L'\\' , &tok );
+					append_char( L'r' , &tok );
 
 				} else {
-					APPEND_CHAR( c )
+					append_char( c , &tok );
 				}
 			} else {
-				if( c == L',' ) {
-					//field_index++;
-					tok.type = COMMA;
-					break;
-				} else if( c == L'\r' ) {
-					if( can_peek() && peek_next_char()==L'\n' ) {
-						line_index++;
-						has_more_wchars();
-						tok.type = NEWLINE;
-						break;
-					} else {
-						tok.type = ERROR;
-						tok.string_val = error_msg;
-						swprintf( error_msg, ERROR_LEN, L"Invalid line ending encountered, line %d\n", line_index );
-						break;
+				
+				// if we finished a separator, bump strings_count and reset
+				if( sep_state == IN_SPACE_2 ) {
+					tok.strings_count++;
+					sep_state = NOT_IN_SEPARATOR;
+				}
+
+				enum separator_state old_state = sep_state;
+				if( sep_state == NOT_IN_SEPARATOR && c==L' ' ) sep_state = IN_SPACE_1;
+				else if( sep_state == IN_SPACE_1 && c==L':' ) sep_state = IN_COLON_1;
+				else if( sep_state == IN_COLON_1 && c==L':' ) sep_state = IN_COLON_2;
+				else if( sep_state == IN_COLON_2 && c==L':' ) sep_state = IN_COLON_3;
+				else if( sep_state == IN_COLON_3 && c==L' ' ) sep_state = IN_SPACE_2;
+				else sep_state = NOT_IN_SEPARATOR;
+
+				if( sep_state == NOT_IN_SEPARATOR ) {
+
+					if( old_state != NOT_IN_SEPARATOR ) {
+						// We were wrong about the separator, append characters to remediate
+						if( old_state >= IN_SPACE_1 ) append_char( L' ', &tok );
+						if( old_state >= IN_COLON_1 ) append_char( L':', &tok );
+						if( old_state >= IN_COLON_2 ) append_char( L':', &tok );
+						if( old_state >= IN_COLON_3 ) append_char( L':', &tok );
 					}
-				} else if( c == L'"' ) {
-					tok.type = STRING;
-					in_quote = 1;				
-				} else {
-					tok.type = STRING;
-					APPEND_CHAR( c )
+
+					if( c == L',' ) {
+						//field_index++;
+						tok.type = COMMA;
+						break;
+					} else if( c == L'\r' ) {
+						if( can_peek() && peek_next_char()==L'\n' ) {
+							line_index++;
+							has_more_wchars();
+							tok.type = NEWLINE;
+							break;
+						} else {
+							tok.type = ERROR;
+							tok.strings[0] = error_msg;
+							swprintf( error_msg, ERROR_LEN, L"Invalid line ending encountered, line %d\n", line_index );
+							break;
+						}
+					} else if( c == L'"' ) {
+						tok.type = STRING_SET;
+						in_quote = 1;				
+
+					
+					} else {
+						tok.type = STRING_SET;
+						append_char( c , &tok );
+					}
 				}
 			}
 
@@ -112,7 +159,7 @@ struct token next_token() {
 
 	if( tok.type == UNKNOWN ) {
 		tok.type = ERROR;
-		tok.string_val = error_msg;
+		tok.strings[0] = error_msg;
 		swprintf( error_msg, ERROR_LEN, L"Couldn't determine token type, line %d\n", line_index );
 	}
 
@@ -127,8 +174,8 @@ void parse( line_end_func line, header_end_func header, string_parsed_func strin
 	while( (tok=next_token()).type != ENDOFFILE ) {
 		if( tok.type == ERROR ) {
 			// TODO: handle
-		} else if( tok.type == STRING ) {
-			string( tok.string_val, field_index );
+		} else if( tok.type == STRING_SET ) {
+			string( tok.strings, tok.strings_count, field_index );
 		} else if( tok.type == COMMA ) {
 			field_index++;
 		} else if( tok.type == NEWLINE ) {

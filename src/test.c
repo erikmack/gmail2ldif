@@ -57,6 +57,11 @@ char short_ascii[] = {
 "\x48\x65\x6c\x6c\x6f\x0a"                                         /* Hello.           */
 };
 
+char short_ascii_separators[] = {
+"One ::: Two :: Three ::: Four\x0a"
+};
+
+
 char short_utf16le[] = {
 "\xff\xfe\x48\x00\x65\x00\x6c\x00\x6c\x00\x6f\x00\x0a\x00"         /* ..H.e.l.l.o...   */
 };
@@ -947,8 +952,32 @@ static int test_short_lex( const char ** testname ) {
 	struct token tok;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Hello" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Hello" );
+
+	return success;
+}
+
+/*
+ * Within a .csv cell, multiple values can be stored.  For example,
+ * if the user has multiple e-mails with type "Work", then they
+ * will be concatenated into a cell like this:
+ *   one@job.com ::: two@job.com
+ * We parse these out.
+ */
+static int test_short_lex_w_separators( const char ** testname ) {
+
+	TEST_INIT
+
+	int success = 1;
+	struct token tok;
+
+	tok = next_token();
+	success = success && tok.type==STRING_SET;
+	success = success && tok.strings_count==3;
+	success = success && !wcscmp( tok.strings[0] , L"One" );
+	success = success && !wcscmp( tok.strings[1] , L"Two :: Three" );
+	success = success && !wcscmp( tok.strings[2] , L"Four" );
 
 	return success;
 }
@@ -961,36 +990,36 @@ static int test_header_lex( const char ** testname ) {
 	struct token tok;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Name" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Name" );
 
 	tok = next_token();
 	success = success && tok.type==COMMA;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Given Name" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Given Name" );
 
 	tok = next_token();
 	success = success && tok.type==COMMA;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Additional Name" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Additional Name" );
 
 	tok = next_token();
 	success = success && tok.type==COMMA;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Family Name" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Family Name" );
 
 	tok = next_token();
 	success = success && tok.type==COMMA;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Yomi Name" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Yomi Name" );
 
 	tok = next_token();
 	success = success && tok.type==COMMA;
@@ -1006,22 +1035,22 @@ static int test_lex_short_csv( const char ** testname ) {
 	struct token tok;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"One" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"One" );
 
 	tok = next_token();
 	success = success && tok.type==COMMA;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Two" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Two" );
 
 	tok = next_token();
 	success = success && tok.type==COMMA;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Three \\\"tokens\\\"" );
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Three \\\"tokens\\\"" );
 
 	tok = next_token();
 	success = success && tok.type==NEWLINE;
@@ -1033,8 +1062,8 @@ static int test_lex_short_csv( const char ** testname ) {
 	success = success && tok.type==COMMA;
 
 	tok = next_token();
-	success = success && tok.type==STRING;
-	success = success && !wcscmp( tok.string_val , L"Multiline\\r\\ntoken\\r\\nhere");
+	success = success && tok.type==STRING_SET;
+	success = success && !wcscmp( tok.strings[0] , L"Multiline\\r\\ntoken\\r\\nhere");
 
 	tok = next_token();
 	success = success && tok.type==NEWLINE;
@@ -1096,11 +1125,11 @@ static void test_header_end_reached() {
 	g_list->index++;
 }
 
-static void test_string_token_parsed( wchar_t * string, int field_index ) {
+static void test_string_token_parsed( wchar_t ** strings, size_t strings_count, int field_index ) {
 	int result;
 	struct parser_callback this = g_list->entries[ g_list->index ];
 	result = ( this.type == STRING_PARSED );
-	result = result && ( !wcscmp( this.string, string ) );
+	result = result && ( !wcscmp( this.string, strings[0] ) );
 	result = result && ( this.field_index == field_index );
 	g_list->entries[ g_list->index ].result = result;
 	g_list->index++;
@@ -1350,7 +1379,9 @@ static int output_test_common( const char * expected_result ) {
 		"cn: Abbie Normal\r\n" \
 		"gn: Abbie\r\n" \
 		"sn: Normal\r\n" \
-		"mail: ab.normal@home.org ::: ab.normal@other.net\r\n" \
+		/* "mail: ab.normal@home.org ::: ab.normal@other.net\r\n" */ \
+		"mail: ab.normal@home.org\r\n" \
+		"mail: ab.normal@other.net\r\n" \
 		"mail: ab.normal@work.com\r\n" \
 		/* "P.O. Box 1\r\nVacant Town, IA\r\n50801\r\n" */ \
 		/* "6 Industry Way\r\nFramingham, PA\r\n54321\r\n" */ \
@@ -1415,30 +1446,33 @@ struct test {
 #define TEST( buf, func ) { pipe_setup, buf, sizeof buf, func, pipe_teardown }
 #define TEST_OUTPUT( buf, func ) { output_setup, buf, sizeof buf, func, output_teardown }
 static struct test tests[] = {
-	/* character input tests */
+	// character input tests
 	TEST( short_ascii, 		test_short_ascii_char ),
 	TEST( short_utf16le, 	test_short_utf16le_char ),
 	TEST( header_ascii, 	test_ascii_longer_char ),
 	TEST( header_utf16le, 	test_utf16le_longer_char ),
 
-	/* lex tests */
+	// lex tests
 	TEST( short_ascii, 		test_short_lex),
+	TEST( short_ascii_separators,	test_short_lex_w_separators),
 	TEST( short_utf16le, 	test_short_lex),
 	TEST( header_ascii, 	test_header_lex),
 	TEST( header_utf16le, 	test_header_lex),
 	TEST( short_ascii_csv, 	test_lex_short_csv),
 
-	/* parse tests */
+	// parse tests
 	TEST( short_ascii_csv, 	test_parse_short_csv),
 
-	/* parse header test */
+	// parse header test
 	{ null_setup_func, NULL, 0, test_parse_header_one, NULL },
 	{ null_setup_func, NULL, 0, test_parse_header_two, NULL },
 	{ null_setup_func, NULL, 0, test_parse_header_three, NULL },
+	/*
+	*/
 
-	/* output tests */
-	TEST_OUTPUT( complete_utf16le,	test_output_utf16),
+	// output tests
 	TEST_OUTPUT( complete_ascii,	test_output_ascii),
+	//TEST_OUTPUT( complete_utf16le,	test_output_utf16),
 
 	{ NULL }
 };
