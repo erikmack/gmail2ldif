@@ -1291,7 +1291,7 @@ static void output_setup( void * data, size_t data_sz ) {
 		int i, success=1;
 		//fwprintf(stderr, L"expected_result_sz: %d\n", expected_result_sz );
 		for( i=0; i<expected_result_sz; i++ ) {
-			fwprintf(stderr, L"comparing chars: %c %c\n", *(output_buf+i) , *(expected_buf+i) );
+			//fwprintf(stderr, L"comparing chars: %c %c\n", *(output_buf+i) , *(expected_buf+i) );
 			if( *(output_buf+i) != *(expected_buf+i)) {
 				success = 0;
 				break;
@@ -1372,19 +1372,28 @@ static int output_test_common( const char * expected_result ) {
 /* End output test infrastructure */
 
 
-
+// TODO: relation, event, IM, birthday, website - these have no ldap equivalents
 #define COMMON_1 "dn: cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" \
 		"changeType: add\r\n" \
 		"objectClass: inetOrgPerson\r\n" \
 		"cn: Abbie Normal\r\n" \
 		"gn: Abbie\r\n" \
 		"sn: Normal\r\n" \
-		/* "mail: ab.normal@home.org ::: ab.normal@other.net\r\n" */ \
 		"mail: ab.normal@home.org\r\n" \
 		"mail: ab.normal@other.net\r\n" \
 		"mail: ab.normal@work.com\r\n" \
-		/* "P.O. Box 1\r\nVacant Town, IA\r\n50801\r\n" */ \
-		/* "6 Industry Way\r\nFramingham, PA\r\n54321\r\n" */ \
+		"streetAddress: 321 Bella Sara Dr.\\r\\nCopingham, MA 01342\r\n" \
+		"streetAddress: P.O. Box 1\\r\\nVacant Town, IA\\r\\n50801\r\n" \
+		"streetAddress: 6 Industry Way\\r\\nFramingham, PA\\r\\n54321\r\n" \
+		"organizationName: Trustworthy Labs, Inc.\r\n" \
+		"title: Chief Executive\r\n" \
+		"telephoneNumber: 512-555-1281\r\n" \
+		"telephoneNumber: 832-555-9087\r\n" \
+		"homePhone: (512) 555-1276\r\n" \
+		"mobile: +01447 964-7812\r\n" \
+		"pager: 514 555 1234\r\n" \
+		"fax: (641) 555-1921\r\n" \
+		"fax: (515) 555-9876\r\n" \
 		"\r\n"
 
 #define COMMON_2 "changeType: add\r\n" \
@@ -1392,6 +1401,10 @@ static int output_test_common( const char * expected_result ) {
 
 #define COMMON_3  \
 		"mail: clever@mail.org\r\n" \
+		"streetAddress: 12 Rescue Way\\r\\nWayne, IN\\r\\n64532\r\n" \
+		"organizationName: New World Enterprises\r\n" \
+		"title: Composer\r\n" \
+		"mobile: (514) 555-8765\r\n" \
 		"\r\n" 
 
 static int test_output_ascii( const char ** testname ) {
@@ -1426,6 +1439,9 @@ static int test_output_utf16( const char ** testname ) {
 	return output_test_common( expected_result );
 }
 
+#undef COMMON_1
+#undef COMMON_2
+#undef COMMON_3
 
 
 void null_setup_func( void * data, size_t data_sz ) { }
@@ -1472,7 +1488,7 @@ static struct test tests[] = {
 
 	// output tests
 	TEST_OUTPUT( complete_ascii,	test_output_ascii),
-	//TEST_OUTPUT( complete_utf16le,	test_output_utf16),
+	TEST_OUTPUT( complete_utf16le,	test_output_utf16),
 
 	{ NULL }
 };

@@ -44,14 +44,14 @@ enum notable_source_fields {
 	// Common to all non-global domains
 	TYPE,
 
-	// email, phone, website, event domains
+	// email, phone, website, event, relation domains
 	VALUE,
 
 	// address domain
 	ADDRESS_FORMATTED,
 
 	// organization domain
-	
+	TITLE,
 	
 
 	NOTABLE_FIELD_COUNT
@@ -152,12 +152,34 @@ static void clear_strings() {
 	}
 }
 
+#define EXISTS( key ) (one_domain->notable_field_map[ key ] !=-1 && slots[ one_domain->notable_field_map[ key ] ].strings[0] )
+#define GET( key ) ( slots[ one_domain->notable_field_map[ key ] ].strings[0] )
+static void iterate( wchar_t * domain_type, 
+	enum notable_source_fields map_value, wchar_t * fmt,
+	enum notable_source_fields if_key, wchar_t * equals ) {
+
+	struct domain * one_domain;
+	for(one_domain=domains; one_domain<domains+domain_count; one_domain++ ) {
+		if( !one_domain->is_global && !wcscmp( domain_type, one_domain->type ) ) {
+
+			int condition_match = (if_key==UNUSED)
+				|| ( EXISTS( if_key ) && !wcscmp( equals, GET( if_key ) ) );
+
+			if( EXISTS( map_value ) && condition_match ) {
+				int i=0;
+				struct strings_slot slot = slots[ one_domain->notable_field_map[ map_value ] ];
+				for(; i<slot.count; i++) {
+					out_printf( fmt, slot.strings[i] );
+				}
+			}
+		}
+	}
+}
+
 static void line_end_reached() {
 
 	// domains are sorted, global is first
 	struct domain * one_domain = domains;
-#define EXISTS( key ) (one_domain->notable_field_map[ key ] !=-1 && slots[ one_domain->notable_field_map[ key ] ].strings[0] )
-#define GET( key ) ( slots[ one_domain->notable_field_map[ key ] ].strings[0] )
 	// TODO: Escape commas in cd for dn
 	out_printf( L"dn: cn=%ls,%s\r\n", GET( NAME ), config->dn_suffix );
 	out_printf( L"changeType: add\r\n" );
@@ -174,23 +196,17 @@ static void line_end_reached() {
 	if( EXISTS( INITIALS ) ) out_printf( L"initials: %ls\r\n", GET( INITIALS ) );
 	if( EXISTS( OCCUPATION ) ) out_printf( L"title: %ls\r\n", GET( OCCUPATION ) );
 
-	//TODO: make a function
-#define ITERATE( domain_type, map_value, fmt ) \
-	for(one_domain=domains; one_domain<domains+domain_count; one_domain++ ) { \
-		if( !one_domain->is_global && !wcscmp( domain_type, one_domain->type ) ) { \
-			if( EXISTS( map_value ) ) { \
-				int i=0; \
-				struct strings_slot slot = slots[ one_domain->notable_field_map[ map_value ] ]; \
-				for(; i<slot.count; i++) { \
-					out_printf( fmt, slot.strings[i] ); \
-				} \
-			} \
-		} \
-	}
-
-	ITERATE( L"E-mail", VALUE, L"mail: %ls\r\n" )
-	//ITERATE( L"Address", ADDRESS_FORMATTED, L"streetAddress: %ls\r\n" )
-
+	iterate( L"E-mail", VALUE, L"mail: %ls\r\n", UNUSED, NULL );
+	iterate( L"Address", ADDRESS_FORMATTED, L"streetAddress: %ls\r\n", UNUSED, NULL );
+	iterate( L"Organization", NAME, L"organizationName: %ls\r\n", UNUSED, NULL );
+	iterate( L"Organization", TITLE, L"title: %ls\r\n", UNUSED, NULL );
+	iterate( L"Phone", VALUE, L"telephoneNumber: %ls\r\n", TYPE, L"Work" );
+	iterate( L"Phone", VALUE, L"telephoneNumber: %ls\r\n", TYPE, L"Other" );
+	iterate( L"Phone", VALUE, L"homePhone: %ls\r\n", TYPE, L"Home" );
+	iterate( L"Phone", VALUE, L"mobile: %ls\r\n", TYPE, L"Mobile" );
+	iterate( L"Phone", VALUE, L"pager: %ls\r\n", TYPE, L"Pager" );
+	iterate( L"Phone", VALUE, L"fax: %ls\r\n", TYPE, L"Work Fax" );
+	iterate( L"Phone", VALUE, L"fax: %ls\r\n", TYPE, L"Home Fax" );
 
 	out_printf( L"\r\n" );
 	
@@ -375,6 +391,8 @@ static void header_end_reached() {
 				domain->notable_field_map[ enumval ] = i;\
 				is_notable = 1; }
 
+#define DOMAIN_MATCHES( wcs ) !wcscmp( wcs, domain->type )
+
 		if( domain->is_global ) {
 
 			MAP( L"Name", NAME )
@@ -385,16 +403,23 @@ static void header_end_reached() {
 			else MAP( L"Initials", INITIALS )
 			else MAP( L"Occupation", OCCUPATION )
 
-		} else if ( !wcscmp( L"Address", domain->type ) ) {
-		} else if ( !wcscmp( L"Organization", domain->type ) ) {
-		} else if ( !wcscmp( L"IM", domain->type ) ) {
-		} else if ( !wcscmp( L"E-mail", domain->type ) 
-					|| !wcscmp( L"Phone", domain->type ) 
-					|| !wcscmp( L"Website", domain->type ) 
-					|| !wcscmp( L"Event", domain->type ) ) {
+		} else if ( DOMAIN_MATCHES( L"Address" ) ) {
+			MAP( L"Formatted", ADDRESS_FORMATTED )
+		} else if ( DOMAIN_MATCHES( L"Organization" ) ) {
+			MAP( L"Name", NAME )
+			else MAP( L"Title", TITLE )
+		} else if ( DOMAIN_MATCHES( L"IM" ) ) {
+		} else if ( DOMAIN_MATCHES( L"E-mail" ) 
+					|| DOMAIN_MATCHES( L"Phone" ) 
+					|| DOMAIN_MATCHES( L"Website" ) 
+					|| DOMAIN_MATCHES( L"Relation" ) 
+					|| DOMAIN_MATCHES( L"Event" ) ) {
 			MAP( L"Type", TYPE )
 			else MAP( L"Value", VALUE )
 		}
+
+#undef DOMAIN_MATCHES
+#undef MAP
 
 		if( !is_notable ) {
 			if( !domain->unaccounted_fields ) {
