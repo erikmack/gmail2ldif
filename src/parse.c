@@ -11,21 +11,38 @@ int swprintf( wchar_t * wcs, size_t maxlen, const wchar_t * format, ...);
 
 // TODO: handle OOM
 void append_char( wchar_t wc, struct token * tok ) {
+
 	if( !tok->strings ) {
-		tok->strings = malloc(sizeof( wchar_t *));
-		*(tok->strings) = NULL;
+		tok->strings = malloc(sizeof( wchar_t ** ));
+		tok->strings[0] = NULL;
 	}
-	wchar_t * append_to = tok->strings[ tok->strings_count-1 ];
-	if( !append_to ) {
-		tok->strings = realloc( tok->strings, tok->strings_count*sizeof(wchar_t *));
-		tok->strings[ tok->strings_count ] = NULL;
-		append_to = tok->strings[ tok->strings_count-1 ] = malloc( sizeof(wchar_t));
-		*append_to = L'\0';
+
+	// value may have been incremented before function call
+	size_t new_count = tok->strings_count;
+
+	wchar_t * last_real_element = tok->strings[ new_count-1 ];
+	size_t newlen;
+
+	if( last_real_element ) {
+		// if element pre-exists
+		newlen = ( wcslen( last_real_element ) + 1 );
+	} else {
+		// if last_real_element is null terminator, append new string
+
+		// grow list, add null terminator
+		tok->strings = realloc( tok->strings, (new_count+1)*sizeof(wchar_t *));
+		tok->strings[ new_count ] = NULL;
+
+		// reserve (empty) place for string
+		tok->strings[ new_count-1 ] = malloc(0);
+		newlen = 1;
 	}
-	size_t newlen = ( wcslen( append_to ) + 2 );
-	append_to = tok->strings[ tok->strings_count-1 ] = realloc( append_to , newlen * sizeof(wchar_t) );
-	*( append_to + newlen - 2) = wc ;
-	*( append_to + newlen - 1) = L'\0';
+
+	// grow string, append char
+	tok->strings[ new_count-1 ] = realloc( tok->strings[ new_count-1 ], (newlen+1) * sizeof(wchar_t) );
+	last_real_element = tok->strings[ new_count-1 ];
+	last_real_element[ newlen - 1 ] = wc;
+	last_real_element[ newlen ] = L'\0';
 }
 
 struct token next_token() {
@@ -176,6 +193,9 @@ void parse( line_end_func line, header_end_func header, string_parsed_func strin
 			// TODO: handle
 		} else if( tok.type == STRING_SET ) {
 			string( tok.strings, tok.strings_count, field_index );
+			//free( tok.strings );
+			tok.strings = NULL;
+			tok.strings_count = 0;
 		} else if( tok.type == COMMA ) {
 			field_index++;
 		} else if( tok.type == NEWLINE ) {

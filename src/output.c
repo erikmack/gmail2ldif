@@ -19,7 +19,7 @@ struct strings_slot {
 	wchar_t ** strings;
 	size_t count;
 };
-//wchar_t ** strings;
+
 struct strings_slot * slots;
 size_t slots_count;
 struct output_config * config;
@@ -148,16 +148,20 @@ static void clear_strings() {
 				*one_string = NULL;
 			}
 			one_slot->count = 0;
+
+			free( one_slot->strings );
+			one_slot->strings = NULL;
 		}
 	}
 }
 
-#define EXISTS( key ) (one_domain->notable_field_map[ key ] !=-1 && slots[ one_domain->notable_field_map[ key ] ].strings[0] )
+#define EXISTS( key ) ((i=one_domain->notable_field_map[ key ]) !=-1 && slots[i].strings && slots[i].strings[0] )
 #define GET( key ) ( slots[ one_domain->notable_field_map[ key ] ].strings[0] )
 static void iterate( wchar_t * domain_type, 
 	enum notable_source_fields map_value, wchar_t * fmt,
 	enum notable_source_fields if_key, wchar_t * equals ) {
 
+	int i; // used in EXISTS macro
 	struct domain * one_domain;
 	for(one_domain=domains; one_domain<domains+domain_count; one_domain++ ) {
 		if( !one_domain->is_global && !wcscmp( domain_type, one_domain->type ) ) {
@@ -185,6 +189,8 @@ static void line_end_reached() {
 	out_printf( L"changeType: add\r\n" );
 
 	out_printf( L"objectClass: inetOrgPerson\r\n" );
+
+	int i; // used in EXISTS macro
 
 	// TODO: for blank cn, discern a substitute
 	// TODO: optionally add/delete/both
@@ -464,6 +470,27 @@ static void header_end_reached() {
 	clear_strings();
 }
 
+static void free_domains() {
+	if( !domains ) return;
+
+	struct domain * one_domain;
+	for( one_domain=domains; one_domain-domains<domain_count; one_domain++ ) {
+		if( one_domain->unaccounted_fields ) {
+			int i;
+			for(i=0; *(one_domain->unaccounted_fields + i) != UNUSED; i++ ) {
+				free( *( one_domain->unaccounted_field_names + i ) );
+			}
+			free( one_domain->unaccounted_field_names );
+			free( one_domain->unaccounted_fields );
+		}
+		free( one_domain->type );
+	}
+
+	free( domains );
+	domains = NULL;
+	domain_count = 0;
+}
+
 static void string_token_parsed( wchar_t ** strings, size_t strings_count, int field_index ) {
 	if( field_index+1 > slots_count ) {
 		if( slots_count ) {
@@ -500,6 +527,19 @@ void perform_conversion( struct output_config outconf ) {
 
 	parse( &line_end_reached, &header_end_reached, 
 		&string_token_parsed );
+
+	/*
+	int i;
+	for(i=0; i<slots_count; i++ ) {
+		free( slots[i].strings );
+		slots[i].strings = NULL;
+	}
+	*/
+	free( slots );
+	slots = NULL;
+
+	free_domains();
+
 
 	int status;
 	status = iconv_close( output_iconv_cd );

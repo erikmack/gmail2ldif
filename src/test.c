@@ -1193,6 +1193,33 @@ static int test_parse_short_csv( const char ** testname ) {
 	return success;
 }
 
+static int test_parse_short_string( const char ** testname ) {
+
+	TEST_INIT
+
+	struct parser_callback_list list;
+	g_list = &list;
+	memset( &list, 0, sizeof list );
+
+	list.entries[ list.callback_count ].type = STRING_PARSED; 
+	list.entries[ list.callback_count ].string = L"Hello"; 
+	list.entries[ list.callback_count ].field_index = 0; 
+	list.callback_count++;
+	
+	list.entries[ list.callback_count ].type = HEADER_END; 
+	list.callback_count++;
+
+	parse( &test_line_end_reached, &test_header_end_reached, 
+		&test_string_token_parsed );
+	
+	int success = 1;
+	int i;
+	for(i = 0; i<list.callback_count; i++ ) {
+		success = success && list.entries[ i ].result;
+	}
+	
+	return success;
+}
 
 static int test_parse_header_one( const char ** testname ) {
 	TEST_INIT
@@ -1407,6 +1434,14 @@ static int output_test_common( const char * expected_result ) {
 		"mobile: (514) 555-8765\r\n" \
 		"\r\n" 
 
+static int test_output_ascii_short( const char ** testname ) {
+	TEST_INIT
+
+	char * expected_result = "";
+
+	return output_test_common( expected_result );
+}
+
 static int test_output_ascii( const char ** testname ) {
 	TEST_INIT
 
@@ -1462,6 +1497,8 @@ struct test {
 #define TEST( buf, func ) { pipe_setup, buf, sizeof buf, func, pipe_teardown }
 #define TEST_OUTPUT( buf, func ) { output_setup, buf, sizeof buf, func, output_teardown }
 static struct test tests[] = {
+	/*
+	*/
 	// character input tests
 	TEST( short_ascii, 		test_short_ascii_char ),
 	TEST( short_utf16le, 	test_short_utf16le_char ),
@@ -1477,18 +1514,24 @@ static struct test tests[] = {
 	TEST( short_ascii_csv, 	test_lex_short_csv),
 
 	// parse tests
+	/*
+	*/
+	TEST( "Hello\x0d\x0a", 	test_parse_short_string),
 	TEST( short_ascii_csv, 	test_parse_short_csv),
 
 	// parse header test
 	{ null_setup_func, NULL, 0, test_parse_header_one, NULL },
 	{ null_setup_func, NULL, 0, test_parse_header_two, NULL },
 	{ null_setup_func, NULL, 0, test_parse_header_three, NULL },
-	/*
-	*/
 
 	// output tests
+	TEST_OUTPUT( "x,Name\r\na,b\r\nf,g\r\n",	test_output_ascii_short),
+	/*
+	*/
 	TEST_OUTPUT( complete_ascii,	test_output_ascii),
 	TEST_OUTPUT( complete_utf16le,	test_output_utf16),
+	/*
+	*/
 
 	{ NULL }
 };
