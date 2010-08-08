@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "main.h"
 #include "test.h"
 #include "input.h"
 #include "parse.h"
@@ -1385,7 +1386,7 @@ static int output_test_common( const char * expected_result ) {
 
 	struct output_config config;
 	config.out_fd = output_write_pipe_end;
-	config.dn_suffix = "ou=Contacts,dn=example,dn=org";
+	config.dn_suffix = "ou=Contacts,dc=example,dc=org";
 
 	perform_conversion( config );
 
@@ -1400,7 +1401,7 @@ static int output_test_common( const char * expected_result ) {
 
 
 // TODO: relation, event, IM, birthday, website - these have no ldap equivalents
-#define COMMON_1 "dn: cn=Abbie Normal,ou=Contacts,dn=example,dn=org\r\n" \
+#define COMMON_1 "dn: cn=Abbie Normal,ou=Contacts,dc=example,dc=org\r\n" \
 		"changeType: add\r\n" \
 		"objectClass: inetOrgPerson\r\n" \
 		"cn: Abbie Normal\r\n" \
@@ -1447,7 +1448,7 @@ static int test_output_ascii( const char ** testname ) {
 
 	char * expected_result = 
 		COMMON_1
-		"dn: cn=Antonin Dvorak,ou=Contacts,dn=example,dn=org\r\n"
+		"dn: cn=Antonin Dvorak,ou=Contacts,dc=example,dc=org\r\n"
 		COMMON_2
 		"cn: Antonin Dvorak\r\n" 
 		"gn: Antonin\r\n" 
@@ -1463,7 +1464,7 @@ static int test_output_utf16( const char ** testname ) {
 
 	char * expected_result = 
 		COMMON_1
-		"dn: cn=Anton\xc3\xadn Dvo\xc5\x99\xc3\xa1k,ou=Contacts,dn=example,dn=org\r\n"
+		"dn: cn=Anton\xc3\xadn Dvo\xc5\x99\xc3\xa1k,ou=Contacts,dc=example,dc=org\r\n"
 		COMMON_2
 		"cn: Anton\xc3\xadn Dvo\xc5\x99\xc3\xa1k\r\n" 
 		"gn: Anton\xc3\xadn\r\n" 
@@ -1478,6 +1479,72 @@ static int test_output_utf16( const char ** testname ) {
 #undef COMMON_2
 #undef COMMON_3
 
+static int test_parse_args_one( const char ** testname ) {
+	TEST_INIT
+	
+	struct output_config config;
+	memset( &config, 0, sizeof config );
+
+	char * argv[] = { 
+		"dummy_program_name",
+		"-s",
+		"ou=Contacts,dc=example,dc=org", 
+		"-t",
+		"-h",
+	};
+
+	int success = parse_args( &config, sizeof argv / sizeof argv[0], argv );
+	success = success && config.dn_suffix;
+	success = success && !strcmp("ou=Contacts,dc=example,dc=org",config.dn_suffix);
+	success = success && config.show_help;
+	success = success && config.run_tests;
+
+	return success;
+}
+
+static int test_parse_args_two( const char ** testname ) {
+	TEST_INIT
+	
+	struct output_config config;
+	memset( &config, 0, sizeof config );
+
+	char * argv[] = { 
+		"dummy_program_name",
+		"--help",
+		"--suffix",
+		"ou=Contacts,dc=example,dc=org", 
+		"--tests-only",
+	};
+
+	int success = parse_args( &config, sizeof argv / sizeof argv[0], argv );
+	success = success && config.dn_suffix;
+	success = success && !strcmp("ou=Contacts,dc=example,dc=org",config.dn_suffix);
+	success = success && config.show_help;
+	success = success && config.run_tests;
+
+	return success;
+}
+
+static int test_parse_args_three( const char ** testname ) {
+	TEST_INIT
+	
+	struct output_config config;
+	memset( &config, 0, sizeof config );
+
+	char * argv[] = { 
+		"dummy_program_name",
+		"--help",
+		"--suffix=ou=Contacts,dc=example,dc=org", 
+	};
+
+	int success = parse_args( &config, sizeof argv / sizeof argv[0], argv );
+	success = success && config.dn_suffix;
+	success = success && !strcmp("ou=Contacts,dc=example,dc=org",config.dn_suffix);
+	success = success && config.show_help;
+	success = success && !config.run_tests;
+
+	return success;
+}
 
 void null_setup_func( void * data, size_t data_sz ) { }
 
@@ -1513,9 +1580,9 @@ static struct test tests[] = {
 	TEST( header_utf16le, 	test_header_lex),
 	TEST( short_ascii_csv, 	test_lex_short_csv),
 
-	// parse tests
 	/*
 	*/
+	// parse tests
 	TEST( "Hello\x0d\x0a", 	test_parse_short_string),
 	TEST( short_ascii_csv, 	test_parse_short_csv),
 
@@ -1526,15 +1593,21 @@ static struct test tests[] = {
 
 	// output tests
 	TEST_OUTPUT( "x,Name\r\na,b\r\nf,g\r\n",	test_output_ascii_short),
-	/*
-	*/
 	TEST_OUTPUT( complete_ascii,	test_output_ascii),
 	TEST_OUTPUT( complete_utf16le,	test_output_utf16),
+
+	// parse arguments
+	{ null_setup_func, NULL, 0, test_parse_args_one, NULL },
+	{ null_setup_func, NULL, 0, test_parse_args_two, NULL },
+	{ null_setup_func, NULL, 0, test_parse_args_three, NULL },
 	/*
 	*/
+	
 
 	{ NULL }
 };
+#undef TEST
+#undef TEST_OUTPUT
 
 void run_tests() {
 	int test_count = 0;
