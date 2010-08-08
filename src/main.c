@@ -8,7 +8,7 @@
 #include "test.h"
 #include "parse.h"
 #include "main.h"
-//#include "../config.h"
+#include "../config.h"
 
 int fwprintf( FILE * stream, const wchar_t * format, ...);
 
@@ -57,13 +57,29 @@ int parse_args( struct output_config * config, int argc, char ** argv ) {
 }
 
 static void show_usage() {
-	// TODO: implement ... include package and version
 
-	static char * usage = 
+	static const char * usage = 
+		"\n"
+		PACKAGE_NAME " version " PACKAGE_VERSION "\n"
+		"\n"
 		"Convert a contact list exported from GMail (in Google-format .csv) to\n"
 		"LDIF, ready for import to an LDAP server.\n"
 		"\n"
 		"Usage:\n"
+		"\n"
+		"  " PACKAGE_NAME " --suffix [distinguished name suffix]\n"
+		"\n"
+		"  " PACKAGE_NAME " --help\n"
+		"\n"
+		"  " PACKAGE_NAME " --tests-only\n"
+		"\n"
+		"\n"
+		"Example:\n"
+		"\n"
+		"  " PACKAGE_NAME " --suffix ou=Contacts,dc=example,dc=org <contacts.csv >addscript.ldif\n"
+		"\n"
+		"\n"
+		"See man " PACKAGE_NAME " for more information.\n"
 	;
 	
 	fprintf( stderr, "%s\n", usage );

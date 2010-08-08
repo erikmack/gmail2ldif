@@ -16,3 +16,5 @@ autom4te.cache
 *.swp
 src/*.swp
 testdata
+*~
+configure.scan
