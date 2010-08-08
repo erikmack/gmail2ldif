@@ -29,7 +29,7 @@
 #include "parse.h"
 
 int fwprintf( FILE * stream, const wchar_t * format, ...);
-int vswprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
+int vswprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, va_list args );
 int swprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
 
 struct strings_slot {
