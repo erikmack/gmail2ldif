@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <getopt.h>
 
+#include "input.h"
 #include "test.h"
 #include "parse.h"
 #include "main.h"
@@ -123,8 +124,10 @@ int main( int argc, char ** argv ) {
 		show_usage();
 	} else if( config.dn_suffix ) {
 		if( config.show_help || config.run_tests ) goto error;
+		input_initialize();
 		config.out_fd = 1; // stdout
 		perform_conversion( config );
+		input_destroy();
 	} else goto error;
 	
 	return 0;
