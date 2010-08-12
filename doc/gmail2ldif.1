@@ -1,0 +1,90 @@
+.TH gmail2ldif 1
+.SH NAME
+gmail2ldif \- convert GMail contacts to an LDAP-importable script
+.SH SYNOPSIS
+.B 
+gmail2ldif \-\-suffix dn_suffix
+
+.B 
+gmail2ldif \-\-tests\-only
+
+.B 
+gmail2ldif \-\-help
+
+.SH DESCRIPTION
+gmail2ldif is a data conversion tool, taking as stardard input a contact list exported from GMail, and producing an LDIF (Lightweight Directory Interchange Format) script that can import these contacts into an LDAP directory.
+
+The input has been exported from the GMail interface as a .csv (comma-separated values) file (the Google format, not Microsoft).  Google may export the file with UTF-16LE file encoding (if any non-ASCII characters exist in the contact list), or otherwise ASCII.  gmail2ldif will detect the input encoding, accepting either encoding transparently to the user.
+
+One parameter is required: '--suffix'.  This value is appended to the full name of each contact to form a distinguished name (DN).  Examples are below.
+
+The output is encoded as UTF-8, preserving all non-ASCII characters.  Special characters such as " and , are escaped appropriately.
+
+Input fields are mapped to output fields in a way that conforms to the standard schema for an 'inetOrgPerson'.  Input fields that don't neatly fit into this schema (ex. events, relations) are discarded.
+
+I/O is performed line-at-a-time, and little memory is used even for very large input files.
+
+gmail2ldif is aware that the input .csv file has a dynamic number of columns in any order.Its design should be reasonably resilient to future changes in the input column schema (new field types, different order, etc.)
+
+
+.SH RETURN VALUE
+0 for success, non-zero for failure.
+
+.SH OPTIONS
+-s --suffix      Specify the value to append to the full name to form an LDAP distinguished name (DN)
+
+-t --tests-only  Run the built-in unit test suite
+
+-h --help        Print a brief help message
+
+.SH EXAMPLES
+.nf
+gmail2ldif --suffix ou=Contacts,dc=example,dc=org <contacts.csv >import.ldif
+.fi
+
+.TP
+Example output
+
+.nf
+dn: cn=Burt Townsend,ou=Contacts,dc=example,dc=org
+changeType: add
+objectClass: inetOrgPerson
+cn: Burt Townsend
+gn: Burt
+sn: Townsend
+mail: address@example.org
+mail: addresstwo@example.org
+streetAddress: 2200 Panther Trail\\r\\nAustin, Texas, 78704
+homePhone: (512) 555-6131
+mobile: 512-555-9419
+
+dn: cn=William Procter,ou=Contacts,dc=example,dc=org
+changeType: add
+objectClass: inetOrgPerson
+cn: William Procter
+gn: William
+sn: Procter
+mail: wprocter@example.org
+telephoneNumber: (512) 555-9808
+.fi
+
+.TP 
+LDAP import
+
+With the OpenLDAP package, it is possible but not recommended to pipe the data directly to the LDAP database:
+
+.nf
+gmail2ldif --suffix ou=Contacts,dc=example,dc=org <contacts.csv \\
+	| ldapmodify -c -D "cn=Manager,dc=example,dc=org"
+.fi
+
+Using the -c flag to ldapmodify would cause the import to resume following a parse error.
+
+
+.SH BUGS
+As mentioned above, certain fields are discarded if an equivalent field doesn't exist in the inetOrgPerson schema.
+
+If a contact doesn't have a surname, then the surname (sn) field of output won't be rendered.  This will cause a schema error when imported into LDAP.
+
+.SH AUTHOR
+Erik Mackdanz

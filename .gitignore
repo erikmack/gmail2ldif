@@ -1,6 +1,6 @@
 gmail2ldif
 *.gdb
-build/*
+build*
 Session.vim
 autoscan-*.log
 Makefile.in

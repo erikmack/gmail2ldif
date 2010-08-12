@@ -1,0 +1,9 @@
+
+Move unit tests out of program source, make will run them
+Port for mingw
+Escape ,
+Guarantee surname (sn)
+Add deletion feature
+Use vector/dictionary types for collections
+Configure should fail on missing required headers
+
