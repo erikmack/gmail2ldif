@@ -86,5 +86,7 @@ As mentioned above, certain fields are discarded if an equivalent field doesn't 
 
 If a contact doesn't have a surname, then the surname (sn) field of output won't be rendered.  This will cause a schema error when imported into LDAP.
 
+Since the distinguished name (DN) is fashioned from the Google "Name" field plus the value of the --suffix parameter, escaping of commas (,) and perhaps equals signs (=) is required.  This is currently missing, so a Name field with a , or = will result in an invalid DN.
+
 .SH AUTHOR
 Erik Mackdanz

@@ -1,0 +1,72 @@
+gmail2ldif
+==========
+Convert a contact list downloaded from GMail 
+into an LDIF script (for import to an LDAP directory)
+
+
+Usage
+-----
+Basically:
+
+	gmail2ldif --suffix "ou=Contacts,dc=example,dc=org" \
+		<contacts.csv >ldapscript.ldif
+
+See 'man gmail2ldif' for more details.
+
+
+Why?
+----
+Own your data!  I wrote this so I could migrate my personal 
+contact list from GMail to a directory server in my home
+network.  This lets me easily integrate the information into
+apps (mutt for e-mail, bash completion, etc)  In addition,
+I have increased privacy, control, and data ownership.
+
+
+Features, benefits
+------------------
+* Reads an input .csv on standard input and writes the 
+  output LDIF script on standard out - an expected, classic
+  Unix interface that is flexible and script-ready.
+
+* The output LDIF conforms to the standard schema for an
+  'inetOrgPerson'.  This allows maximum interoperability
+  with apps that integrate with your directory server.
+
+* International content is welcome:  the tool automatically 
+  discerns and accepts the encoding used for the input file, 
+  which may be Unicode (UTF-16) or ASCII.  Output is UTF-8,
+  per the LDIF spec(s).
+
+* Makes no assumptions about the values/quantity/order of
+  input columns - the tool is reasonably resilient to
+  changes in the input schema.  Since Google allows a
+  seemingly unlimited number of phone numbers, addresses,
+  etc per contact.  The output includes all of these,
+  imposing no artificial limits on the data.  (See Known
+  Issues below for a caveat)
+
+* Processes input/output one line at a time.  This means
+  very little memory is used, even for very large inputs.
+
+* Covered by an extensive unit test suite, so future changes
+  are likely to maintain quality (regressions unlikely)
+
+* GPLv3 - if the output is not exactly to your liking, you
+  are free to change it. 
+
+
+Known issues
+------------
+* Commas (,) and equals signs (=) that occur in the contact's 
+  "Name" field are not escaped when they are made into a
+  Distinguished Name (DN).  This results in an invalid DN.
+  A future release will address this.
+
+* Input fields that don't have a reasonable equivalent in
+  the 'inetOrgPerson' schema are discarded.  This includes
+  dates (anniversary, etc), events, relations (spouse, etc).
+  A future release may include something like a 
+  --guarantee-transfer flag that will force these items into
+  the output, into some sort of dummy field.
+
