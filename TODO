@@ -7,6 +7,7 @@ Add deletion feature
 Use vector/dictionary types for collections
 Configure should fail on missing required headers
 	_or_ add proper conditionals around #includes
-Autotools installs man page
+Explore if # in attribute is handled correctly without being
+	escaped
 
 
