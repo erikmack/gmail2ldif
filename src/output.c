@@ -100,7 +100,9 @@ static int out_printf( const wchar_t * format, ...) {
 	va_list argp;
 	va_start(argp, format);
 
-	size_t maxlen = 16;
+	// Was 16, but segfaulted on AMD 64
+	size_t maxlen = 64;
+
 	size_t buf_sz;
 	wchar_t * wbuf; 
 	int wbuf_chars_written;
