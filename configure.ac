@@ -14,7 +14,9 @@ AC_PROG_CC
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_CPP
+AC_PROG_RANLIB
 AC_PROG_MKDIR_P
+AM_PROG_CC_C_O
 
 # Checks for libraries.
 # Cygwin (and others certainly) keep iconv elsewhere

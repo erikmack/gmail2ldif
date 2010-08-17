@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "main.h"
+#include "args.h"
 #include "test.h"
 #include "input.h"
 #include "parse.h"

@@ -10,4 +10,9 @@ Configure should fail on missing required headers
 Explore if # in attribute is handled correctly without being
 	escaped
 
+Fix error message when unknown option is specified:
+	1. run gmail2ldif --run-tests
+	Expected: message ... Unknown output "--run-tests"
+	Actual: message ... Unknown option character \x0
+
 

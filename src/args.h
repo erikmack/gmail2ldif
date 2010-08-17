@@ -15,11 +15,11 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MAIN_H_
-#define MAIN_H_
+#ifndef ARGS_H_
+#define ARGS_H_
 
 #include "output.h"
 
 int parse_args( struct output_config * config, int argc, char ** argv );
 
-#endif // MAIN_H_
+#endif // ARGS_H_
