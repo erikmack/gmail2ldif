@@ -18,6 +18,8 @@
 #ifndef INPUT_H_
 #define INPUT_H_
 
+#include <wchar.h>
+
 void set_input( int fd );
 int has_more_wchars();
 int can_peek();

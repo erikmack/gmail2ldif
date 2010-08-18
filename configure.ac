@@ -7,7 +7,7 @@ AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile test/Makefile test/data/Makefile])
 
 # Checks for programs.
 AC_PROG_CC
