@@ -33,13 +33,13 @@ int fwide( FILE * stream, int mode );
 
 
 // Raw character data is read into a buffer.
-#define RAW_STDIN_SZ 16
+#define RAW_STDIN_SZ 64
 char raw[ RAW_STDIN_SZ ];
 char * raw_convert_from;
 char * raw_read_to;
 
 
-#define WCHAR_BUF_COUNT 16
+#define WCHAR_BUF_COUNT 64
 wchar_t wide[ WCHAR_BUF_COUNT ];
 wchar_t * converted_to_here = wide;
 

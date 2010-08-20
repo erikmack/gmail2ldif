@@ -61,6 +61,8 @@ static void test_string_token_parsed( wchar_t ** strings, size_t strings_count, 
 
 int main() {
 
+	input_initialize();
+
 	struct parser_callback_list list;
 	g_list = &list;
 	memset( &list, 0, sizeof list );
@@ -96,6 +98,8 @@ int main() {
 
 	parse( &test_line_end_reached, &test_header_end_reached, 
 		&test_string_token_parsed );
+
+	input_destroy();
 	
 	int success = 1;
 	int i;
