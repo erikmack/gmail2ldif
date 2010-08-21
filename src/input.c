@@ -50,7 +50,7 @@ wchar_t * converted_to_here = wide;
 int is_lexer_initialized = 0;
 iconv_t cd = (iconv_t)-1;	// conversion descriptor for iconv
 
-int input_fd = 0;	// normally stdin, but unit tests will set it otherwise
+int input_fd = 0;	// normally stdin
 
 wchar_t current_wchar;
 
@@ -167,7 +167,7 @@ int input_initialize() {
 		// We read two characters to sniff the encoding,
 		// but we'd still like to read them normally.
 		// rewind() and lseek() can rewind our files under
-		// normal conditions, but the unit tests use pipes
+		// normal conditions, but the unit tests used pipes
 		// which are unseekable.  Instead, let's just move
 		// the two characters where we'd like them so that
 		// reading can resume normally.
@@ -198,10 +198,6 @@ void input_destroy() {
 
 	input_fd = 0;
 	is_lexer_initialized = 0;
-}
-
-void set_input( int fd ) {
-	input_fd = fd;
 }
 
 wchar_t get_current_char()

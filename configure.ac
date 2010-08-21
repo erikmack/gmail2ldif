@@ -3,11 +3,15 @@
 
 AC_PREREQ([2.65])
 AC_INIT([gmail2ldif], [0.1], [erikmack@gmail.com])
-AC_CONFIG_SRCDIR([src/main.c])
+AC_CONFIG_SRCDIR([src/gmail2ldif.c])
 AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE
-AC_CONFIG_FILES([Makefile src/Makefile test/Makefile test/data/Makefile])
+AC_CONFIG_FILES([Makefile 
+	src/Makefile 
+	doc/Makefile
+	test/Makefile 
+	test/data/Makefile])
 
 # Checks for programs.
 AC_PROG_CC

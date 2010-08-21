@@ -24,7 +24,6 @@ struct output_config {
 	int out_fd;
 	char * dn_suffix;
 	int show_help;
-	int run_tests;
 };
 
 void perform_conversion( struct output_config outconf );

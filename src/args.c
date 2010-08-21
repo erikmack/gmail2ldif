@@ -13,13 +13,12 @@ int parse_args( struct output_config * config, int argc, char ** argv ) {
 	// suppress built-in error message, we'll use our own
 	opterr = 0;
 
-	// resets parser, since unit tests call this several times
+	// resets parser
 	optind = 0;
 
 	static struct option long_options[] =
 	{
 		{"help",    no_argument, 0, 'h'},
-		{"tests-only",    no_argument, 0, 't'},
 		{"suffix",    required_argument, 0, 's'},
 		{0, 0, 0, 0}
 	};
@@ -33,9 +32,6 @@ int parse_args( struct output_config * config, int argc, char ** argv ) {
 			break;
 		case 'h':	// help/usage
 			config->show_help = 1;
-			break;
-		case 't':	// run tests
-			config->run_tests = 1;
 			break;
 		case '?':	// invalid option argument
 			if( optopt == 's' )

@@ -20,7 +20,6 @@
 
 #include <wchar.h>
 
-void set_input( int fd );
 int has_more_wchars();
 int can_peek();
 wchar_t get_current_char();

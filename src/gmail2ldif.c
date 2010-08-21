@@ -21,7 +21,6 @@
 #include <wchar.h>
 
 #include "input.h"
-#include "test.h"
 #include "parse.h"
 #include "args.h"
 #include "../config.h"
@@ -38,8 +37,6 @@ static void show_usage() {
 		"  " PACKAGE_NAME " --suffix [distinguished name suffix]\n"
 		"\n"
 		"  " PACKAGE_NAME " --help\n"
-		"\n"
-		"  " PACKAGE_NAME " --tests-only\n"
 		"\n"
 		"\n"
 		"Example:\n"
@@ -69,13 +66,10 @@ int main( int argc, char ** argv ) {
 	int parse_success = parse_args( &config, argc, argv );
 	if( !parse_success ) return 1;
 
-	if( config.run_tests ) {
-		if( config.show_help || config.dn_suffix ) goto error;
-		run_tests();
-	} else if( config.show_help ) {
+	if( config.show_help ) {
 		show_usage();
 	} else if( config.dn_suffix ) {
-		if( config.show_help || config.run_tests ) goto error;
+		if( config.show_help ) goto error;
 		input_initialize();
 		config.out_fd = 1; // stdout
 		perform_conversion( config );

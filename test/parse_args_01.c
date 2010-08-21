@@ -12,7 +12,6 @@ int main() {
 		"dummy_program_name",
 		"-s",
 		"ou=Contacts,dc=example,dc=org", 
-		"-t",
 		"-h",
 	};
 
@@ -20,7 +19,6 @@ int main() {
 	success = success && config.dn_suffix;
 	success = success && !strcmp("ou=Contacts,dc=example,dc=org",config.dn_suffix);
 	success = success && config.show_help;
-	success = success && config.run_tests;
 
 	assert(success);
 	return 0;
