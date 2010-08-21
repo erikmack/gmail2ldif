@@ -24,7 +24,10 @@
 #include "input.h"
 
 int fwprintf( FILE * stream, const wchar_t * format, ...);
+
+#ifndef __MINGW_H
 int swprintf( wchar_t * wcs, size_t maxlen, const wchar_t * format, ...);
+#endif
 
 // TODO: handle OOM
 void append_char( wchar_t wc, struct token * tok ) {
@@ -163,7 +166,11 @@ struct token next_token() {
 						} else {
 							tok.type = ERROR;
 							tok.strings[0] = error_msg;
+#ifdef __MINGW_H
+							swprintf( error_msg, L"Invalid line ending encountered, line %d\n", line_index );
+#else
 							swprintf( error_msg, ERROR_LEN, L"Invalid line ending encountered, line %d\n", line_index );
+#endif
 							break;
 						}
 					} else if( c == L'"' ) {
@@ -194,7 +201,11 @@ struct token next_token() {
 	if( tok.type == UNKNOWN ) {
 		tok.type = ERROR;
 		tok.strings[0] = error_msg;
+#ifdef __MINGW_H
+		swprintf( error_msg, L"Couldn't determine token type, line %d\n", line_index );
+#else
 		swprintf( error_msg, ERROR_LEN, L"Couldn't determine token type, line %d\n", line_index );
+#endif
 	}
 
 	return tok;

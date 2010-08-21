@@ -93,9 +93,14 @@ int has_more_wchars() {
 
 		char * wide_target_char_ptr = (char *)wide;
 
+		const char * const_raw_convert_from = raw_convert_from;
 
 		size_t status = iconv( cd,
+#ifdef __MINGW_H
+			&const_raw_convert_from, &insz,
+#else
 			&raw_convert_from, &insz,
+#endif
 			&wide_target_char_ptr, &outsz);
 		
 		if(status == (size_t)-1) {

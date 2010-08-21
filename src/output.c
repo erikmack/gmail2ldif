@@ -29,8 +29,10 @@
 #include "parse.h"
 
 int fwprintf( FILE * stream, const wchar_t * format, ...);
+
+#ifndef __MINGW_H
 int vswprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, va_list args );
-int swprintf( wchar_t * dest, size_t maxlen, const wchar_t * format, ...);
+#endif
 
 struct strings_slot {
 	wchar_t ** strings;
@@ -113,7 +115,11 @@ static int out_printf( const wchar_t * format, ...) {
 		memset( wbuf, 0, buf_sz );
 		
 		wbuf_chars_written = 
+#ifdef __MINGW_H
+			vswprintf( wbuf, format, argp );
+#else
 			vswprintf( wbuf, maxlen, format, argp );
+#endif
 
 		int need_more = 
 			wbuf_chars_written == maxlen
@@ -136,8 +142,12 @@ static int out_printf( const wchar_t * format, ...) {
 	char mbbuf[ buf_sz ];
 	memset( mbbuf, 0, buf_sz );
 
-
+#ifdef __MINGW_H
+	const char * inbuf;
+#else
 	char * inbuf;
+#endif
+
 	char * outbuf;
 	inbuf = (char *)wbuf;
 	outbuf = (char *)mbbuf;

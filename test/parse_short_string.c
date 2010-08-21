@@ -22,7 +22,7 @@ struct parser_callback {
 #define MAX_CALLBACKS 128
 
 struct parser_callback_list {
-	off_t index;
+	long index;
 	size_t callback_count;
 	struct parser_callback entries[MAX_CALLBACKS];
 };
