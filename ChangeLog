@@ -1,0 +1,8 @@
+0.2
+---
+Unit tests pulled from source into 'make check' target
+Support AMD 64, unit tests all pass
+
+0.1
+---
+Initial release

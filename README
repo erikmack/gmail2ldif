@@ -70,3 +70,6 @@ Known issues
   --guarantee-transfer flag that will force these items into
   the output, into some sort of dummy field.
 
+* Currently only x86 and AMD 64 (including x64) are supported.
+  Support is planned for MinGW (or failing that, Cygwin) and
+  MacOSX.
