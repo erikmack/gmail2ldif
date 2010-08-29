@@ -18,4 +18,6 @@ int main() {
 
 	assert(success);
 
+	return 0;
+
 }

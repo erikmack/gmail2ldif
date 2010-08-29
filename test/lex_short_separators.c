@@ -19,4 +19,6 @@ int main() {
 
 	input_destroy();
 
+	return 0;
+
 }
