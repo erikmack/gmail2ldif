@@ -36,7 +36,6 @@ fi
 AC_CHECK_HEADERS([malloc.h stdlib.h string.h unistd.h wchar.h wctype.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
