@@ -56,6 +56,7 @@ wchar_t current_wchar;
 
 wchar_t * peek_wchar_ptr;
 
+// TODO: shouldn't this succeed for final \\n of file?  It fails
 int has_more_wchars() {
 
 	// Maybe invalid (start state) but will reset soon
@@ -93,15 +94,17 @@ int has_more_wchars() {
 
 		char * wide_target_char_ptr = (char *)wide;
 
+#ifdef __MINGW_H
 		const char * const_raw_convert_from = raw_convert_from;
 
 		size_t status = iconv( cd,
-#ifdef __MINGW_H
 			&const_raw_convert_from, &insz,
-#else
-			&raw_convert_from, &insz,
-#endif
 			&wide_target_char_ptr, &outsz);
+#else
+		size_t status = iconv( cd,
+			&raw_convert_from, &insz,
+			&wide_target_char_ptr, &outsz);
+#endif
 		
 		if(status == (size_t)-1) {
 			if( errno == EILSEQ ) {

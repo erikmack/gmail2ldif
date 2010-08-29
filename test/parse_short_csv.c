@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "input.h"
 #include "parse.h"
 
 /* Begin parsing test infrastructure */

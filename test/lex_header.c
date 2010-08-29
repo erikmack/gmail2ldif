@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include "input.h"
 #include "parse.h"
 
 int main() {
