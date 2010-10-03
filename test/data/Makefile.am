@@ -1,4 +1,4 @@
-dist_data_DATA = \
+dist_check_DATA = \
 	short-ascii.txt \
 	short-utf16le.txt \
 	header-ascii.csv \
