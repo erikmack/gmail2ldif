@@ -157,8 +157,16 @@ static int out_printf( const wchar_t * format, ...) {
 
 
 	free( wbuf );
-	int status = write( config->out_fd, mbbuf, outbuf-mbbuf );
-	if( status == -1 ) fwprintf( stderr, L"output_fd write: %s\n", strerror(errno) );
+	int status = fwrite( mbbuf, 1, outbuf-mbbuf, stdout );
+	if( status == 0 ) {
+		if(ferror(stdout)) {
+			char * err = strerror(errno);
+			fwprintf( stderr, L"output_fd write: %s\n", err );
+		} else if( feof(stdout) ) {
+			fwprintf( stderr, L"Hmm, EOF on stdout...\n" );
+		}
+		clearerr(stdout);
+	}
 
 	return status; 
 }

@@ -21,7 +21,6 @@
 #include <stdlib.h>
 
 struct output_config {
-	int out_fd;
 	char * dn_suffix;
 	int show_help;
 };

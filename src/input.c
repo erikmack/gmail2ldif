@@ -50,8 +50,6 @@ wchar_t * converted_to_here = wide;
 int is_lexer_initialized = 0;
 iconv_t cd = (iconv_t)-1;	// conversion descriptor for iconv
 
-int input_fd = 0;	// normally stdin
-
 wchar_t current_wchar;
 
 wchar_t * peek_wchar_ptr;
@@ -79,8 +77,9 @@ int has_more_wchars() {
 			}
 
 			raw_convert_from = raw;
-			int status = read( input_fd, raw_read_to, RAW_STDIN_SZ-(raw_read_to-raw));
-			if( status == -1 ) {
+			int status = fread( raw_read_to, 1, RAW_STDIN_SZ-(raw_read_to-raw), stdin);
+			if( status == 0 ) {
+				// TODO: check feof vs ferror
 				fwprintf( stderr, L"read: %s\n", strerror(errno) );
 				return 0;
 			} else {
@@ -133,14 +132,6 @@ int can_peek()
 int input_initialize() {
 	if( is_lexer_initialized ) return 0;
 
-	// Change stream to wide-character
-	if( !fwide(stdout,0) ) {
-		if( fwide(stdout,1) <= 0 ) {
-			perror( "Can't set to wide character stream, exiting failure\n");
-			return -1;
-		} 
-	}
-
 	memset( raw, 0, RAW_STDIN_SZ );
 	
 	// Set raw ptr at end to force read
@@ -154,8 +145,9 @@ int input_initialize() {
 	int status = 0;
 
 	// Input can be encoded as ASCII or UTF-16LE, discern
-	status = read( input_fd, raw, 2);
-	if( status == -1 ) {
+	status = fread( raw, 1, 2, stdin);
+	if( status == 0 ) {
+		// TODO: distinguish feof from ferror
 		fwprintf( stderr, L"read: %s\n", strerror(errno) );
 	} else if (status < 2) {
 		fwprintf( stderr, L"read: couldn't even read two bytes to detect encoding, invalid file\n" );
@@ -201,10 +193,6 @@ void input_destroy() {
 	int status = iconv_close( cd );
 	if( status == -1 ) fwprintf( stderr, L"iconv_close: %s\n", strerror(errno) );
 
-	status = close( input_fd );
-	if( status == -1 ) fwprintf( stderr, L"close: %s\n", strerror(errno) );
-
-	input_fd = 0;
 	is_lexer_initialized = 0;
 }
 

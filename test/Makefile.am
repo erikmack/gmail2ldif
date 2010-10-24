@@ -89,66 +89,66 @@ parse_header_03_LDADD = ../src/libcore.a
 parse_header_03_CPPFLAGS = -I$(top_srcdir)/src
 
 input_short_ascii.sh: 
-	echo "./input_short <$(top_srcdir)/test/data/short-ascii.txt" > $@
+	echo "./input_short$(EXEEXT) <$(top_srcdir)/test/data/short-ascii.txt" > $@
 	chmod +x $@
 
 input_short_utf16.sh: 
-	echo "./input_short <$(top_srcdir)/test/data/short-utf16le.txt" > $@
+	echo "./input_short$(EXEEXT) <$(top_srcdir)/test/data/short-utf16le.txt" > $@
 	chmod +x $@
 
 
 input_short_header_ascii.sh: 
-	echo "./input_short_header <$(top_srcdir)/test/data/header-ascii.csv" > $@
+	echo "./input_short_header$(EXEEXT) <$(top_srcdir)/test/data/header-ascii.csv" > $@
 	chmod +x $@
 
 input_short_header_utf16.sh: 
-	echo "./input_short_header <$(top_srcdir)/test/data/header-utf16.csv" > $@
+	echo "./input_short_header$(EXEEXT) <$(top_srcdir)/test/data/header-utf16.csv" > $@
 	chmod +x $@
 
 
 lex_short_ascii.sh: 
-	echo "./lex_short <$(top_srcdir)/test/data/short-ascii.txt" > $@
+	echo "./lex_short$(EXEEXT) <$(top_srcdir)/test/data/short-ascii.txt" > $@
 	chmod +x $@
 
 lex_short_utf16.sh: 
-	echo "./lex_short <$(top_srcdir)/test/data/short-utf16le.txt" > $@
+	echo "./lex_short$(EXEEXT) <$(top_srcdir)/test/data/short-utf16le.txt" > $@
 	chmod +x $@
 
 lex_short_ascii_separators.sh: 
-	echo "./lex_short_separators <$(top_srcdir)/test/data/short-ascii-separators.txt" > $@
+	echo "./lex_short_separators$(EXEEXT) <$(top_srcdir)/test/data/short-ascii-separators.txt" > $@
 	chmod +x $@
 
 
 lex_header_ascii.sh: 
-	echo "./lex_header <$(top_srcdir)/test/data/header-ascii.csv" > $@
+	echo "./lex_header$(EXEEXT) <$(top_srcdir)/test/data/header-ascii.csv" > $@
 	chmod +x $@
 
 lex_header_utf16.sh: 
-	echo "./lex_header <$(top_srcdir)/test/data/header-utf16.csv" > $@
+	echo "./lex_header$(EXEEXT) <$(top_srcdir)/test/data/header-utf16.csv" > $@
 	chmod +x $@
 
 lex_short_csv.sh: 
-	echo "./lex_short_csv <$(top_srcdir)/test/data/short-ascii-csv.csv" > $@
+	echo "./lex_short_csv$(EXEEXT) <$(top_srcdir)/test/data/short-ascii-csv.csv" > $@
 	chmod +x $@
 
 
 parse_short_string.sh: 
-	echo "./parse_short_string <$(top_srcdir)/test/data/short-ascii-two.txt" > $@
+	echo "./parse_short_string$(EXEEXT) <$(top_srcdir)/test/data/short-ascii-two.txt" > $@
 	chmod +x $@
 
 parse_short_csv.sh: 
-	echo "./parse_short_csv <$(top_srcdir)/test/data/short-ascii-csv.csv" > $@
+	echo "./parse_short_csv$(EXEEXT) <$(top_srcdir)/test/data/short-ascii-csv.csv" > $@
 	chmod +x $@
 
 
 output_ascii_one.sh:
-	echo "../src/gmail2ldif --suffix 'ou=Contacts,dc=example,dc=org' <$(top_srcdir)/test/data/complete-ascii.csv >tmp_ascii.ldif" > $@
+	echo "../src/gmail2ldif$(EXEEXT) --suffix 'ou=Contacts,dc=example,dc=org' <$(top_srcdir)/test/data/complete-ascii.csv >tmp_ascii.ldif" > $@
 	echo "diff $(top_srcdir)/test/data/complete-ascii-expect.ldif tmp_ascii.ldif >/dev/null || exit 1" >> $@
 	echo "rm -f tmp_ascii.ldif" >> $@
 	chmod +x $@
 
 output_utf16_one.sh:
-	echo "../src/gmail2ldif --suffix 'ou=Contacts,dc=example,dc=org' <$(top_srcdir)/test/data/complete-utf16.csv >tmp_utf16.ldif || exit 1" > $@
-	echo "diff $(top_srcdir)/test/data/complete-utf16-expect.ldif tmp_utf16.ldif >/dev/null" >> $@
+	echo "../src/gmail2ldif$(EXEEXT) --suffix 'ou=Contacts,dc=example,dc=org' <$(top_srcdir)/test/data/complete-utf16.csv >tmp_utf16.ldif || exit 1" > $@
+	echo "diff $(top_srcdir)/test/data/complete-utf16-expect.ldif tmp_utf16.ldif >/dev/null || exit 1" >> $@
 	echo "rm -f tmp_utf16.ldif" >> $@
 	chmod +x $@

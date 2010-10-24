@@ -71,7 +71,6 @@ int main( int argc, char ** argv ) {
 	} else if( config.dn_suffix ) {
 		if( config.show_help ) goto error;
 		input_initialize();
-		config.out_fd = 1; // stdout
 		perform_conversion( config );
 		input_destroy();
 	} else goto error;

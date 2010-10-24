@@ -1,5 +1,4 @@
 
-Move unit tests out of program source, make will run them
 Port for mingw
 Escape ,
 Guarantee surname (sn)
